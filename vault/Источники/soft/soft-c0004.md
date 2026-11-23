@@ -1,0 +1,23 @@
+---
+ветка: "Софты"
+разговор: c0004
+дата: 2026-08-28
+категория: nft
+оценка: keep
+теги: ["kenjiorigins", "bangerbots", "wardlings", "ungodly", "2captcha"]
+---
+# Софты · c0004 · 2026-08-28 13:38
+
+**Выжимка:** Kenji Origins: минт 2 сентября, 3333 supply на Robinhood, форма ещё работает. BangerBots: капча через CapSolver/2Captcha/Anti-Captcha (ключ в data/captcha_key.txt, по словам автора 2Captcha ~2.8$ за 1000). Wardlings: 444 GTD через форму, ~3K заявок; UnGodly: 666 supply на RH, капчу софт обрабатывает, нужны кошельки и прокси.
+
+**Схема** (bots_soft): Max Wayld разослал формы на фриминты и вайтлисты Robinhood-коллекций: Kenji Origins (минт 2 сентября, 3333 supply), Bangerbots (капча, нужен ключ CapSolver, 2Captcha или Anti-Captcha; по его словам, 2Captcha вышел 2.8$ за 1000 капч), Wardlings (444 GTD через форму, около 3К заявок) и UnGodly (666 supply, капчу софт обходит, нужны только кошельки и прокси). Он обновил софт, чтобы ошибки и ретраи обрабатывались автоматически.
+
+## Сообщения
+
+**#37368 2026-08-28 13:38 Max Wayld 福: https://kenjiorigins.com/ / https://x.com/KenjiOrigins /  / Минт 2 сентября 3333 сапплай на RH. Форма всё ещё рабочая. Смартов и инфлов мало, хотя есть золотая галочка + есть своя студия и билдят игру и мерч и мангу и ещё дохуя чего ⟪files: [архив kenji-origins-wl-bot-MXW.zip, 16 файлов] kenji-origins-wl-bot/.gitignore kenji-origins-wl-bot/config.py kenji-origins-wl-bot/main.py kenji-origins-wl-bot/README.md kenji-origins-wl-bot/requirements.txt kenji-origins-wl-bot/data/addresses.txt kenji-origins-wl-bot/data/proxy.txt kenji-origins-wl-bot/kenji/db.py kenji-origins-wl-bot/kenji/identity.py kenji-origins-wl-bot/kenji/log.py kenji-origins-wl-bot/kenji/proxy_manager.py kenji-origins-wl-bot/kenji/runner.py kenji-origins-wl-bot/kenji/source.py kenji-origins-wl-bot/kenji/submit.py kenji-origins-wl-bot/kenji/__init__.py kenji-origins-wl-bot/logs/.gitkeep⟫**
+
+**#37385 2026-08-28 14:06 Max Wayld 福: https://www.bangerbots.xyz/ / https://x.com/bangerbots /  / Ещё нет никакой инфы по условиям, к сожалению будет в мейннете, но сделано от пиздатого артиста и инфла - https://x.com/vibezgm - да и твитак коллекции собирает актива прям дохуищу уже щас со старта /  / Есть капча, нужно вписать свою апишку с CapSolver, 2Captcha или Anti-Captcha, под это там лежит отдельный текстовик data/captcha_key.txt. Я юзал 2Captcha и вышло 2.8$ за 1000 капч. ⟪files: [архив bangerbots-wl-bot-MXW.zip, 18 файлов] bangerbots-wl-bot/.gitignore bangerbots-wl-bot/config.py bangerbots-wl-bot/main.py bangerbots-wl-bot/README.md bangerbots-wl-bot/requirements.txt bangerbots-wl-bot/banger/db.py bangerbots-wl-bot/banger/identity.py bangerbots-wl-bot/banger/log.py bangerbots-wl-bot/banger/proxy_manager.py bangerbots-wl-bot/banger/runner.py bangerbots-wl-bot/banger/solver.py bangerbots-wl-bot/banger/source.py bangerbots-wl-bot/banger/submit.py bangerbots-wl-bot/banger/__init__.py bangerbots-wl-bot/data/addresses.txt bangerbots-wl-bot/data/captcha_key.txt bangerbots-wl-bot/data/proxy.txt bangerbots-wl-bot/logs/.gitkeep⟫**
+
+**#37387 2026-08-28 14:20 Max Wayld 福: https://wardlings.xyz/applyogfreemint / https://x.com/wardlingsnft /  / 444 GTD через форму раздают, коллекция дефолт ноунейм бомжи, но вероятно фришку сделают на эту стадию, а никто не абузит там только 3К заявок ⟪files: [архив wardlings-og-wl-bot-MXW.zip, 16 файлов] wardlings-og-wl-bot/.gitignore wardlings-og-wl-bot/config.py wardlings-og-wl-bot/main.py wardlings-og-wl-bot/README.md wardlings-og-wl-bot/requirements.txt wardlings-og-wl-bot/data/addresses.txt wardlings-og-wl-bot/data/proxy.txt wardlings-og-wl-bot/logs/.gitkeep wardlings-og-wl-bot/ward/db.py wardlings-og-wl-bot/ward/identity.py wardlings-og-wl-bot/ward/log.py wardlings-og-wl-bot/ward/proxy_manager.py wardlings-og-wl-bot/ward/runner.py wardlings-og-wl-bot/ward/source.py wardlings-og-wl-bot/ward/submit.py wardlings-og-wl-bot/ward/__init__.py⟫**
+
+**#37388 2026-08-28 14:21 Max Wayld 福: UPD: обновил софт и задержку в нём чтобы не было ошибок и ретраи автоматом ебашились /  / https://www.ungdly.art/wl / https://x.com/UnGodly_Art /  / Норм, на 666 сапплай на RH. /  / Есть капча, но в софте она объебывается и по прежнему нужны только кошельки и прокси и всё. ⟪files: [архив ungdly-wl-bot-MXW.zip, 16 файлов] ungdly-wl-bot/.gitignore ungdly-wl-bot/config.py ungdly-wl-bot/main.py ungdly-wl-bot/README.md ungdly-wl-bot/requirements.txt ungdly-wl-bot/data/addresses.txt ungdly-wl-bot/data/proxy.txt ungdly-wl-bot/logs/.gitkeep ungdly-wl-bot/ung/db.py ungdly-wl-bot/ung/identity.py ungdly-wl-bot/ung/log.py ungdly-wl-bot/ung/proxy_manager.py ungdly-wl-bot/ung/runner.py ungdly-wl-bot/ung/source.py ungdly-wl-bot/ung/submit.py ungdly-wl-bot/ung/__init__.py⟫**

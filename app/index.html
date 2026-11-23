@@ -1,0 +1,1278 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<title>MXW · карта</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="https://unpkg.com/force-graph@1.47.4/dist/force-graph.min.js"></script>
+<script src="https://unpkg.com/d3@7/dist/d3.min.js"></script>
+<script src="https://unpkg.com/marked@12/marked.min.js"></script>
+<style>
+  :root { --bg:#0b0b12; --panel:#13131d; --line:#262636; --fg:#e6e6ef; --dim:#8b8ba3; --accent:#e5397b; }
+  * { box-sizing:border-box; }
+  body { margin:0; background:var(--bg); color:var(--fg); font:14px/1.5 system-ui, "Segoe UI", sans-serif; overflow:hidden; }
+  #top { position:fixed; top:0; left:0; right:0; min-height:48px; display:flex; flex-wrap:wrap; align-items:center; column-gap:12px; row-gap:6px;
+         padding:0 14px; background:linear-gradient(var(--bg), transparent); z-index:5; container-type:inline-size; transition:right .2s; }
+  body.panel-open #top { right:min(560px, 100vw); }   /* сжимаем до левой границы #panel (ширина та же: min(560px, 100vw)) */
+  #top button { display:inline-flex; align-items:center; gap:5px; }
+  @container (max-width:1300px) { #top button { padding:6px 8px; } }      /* тесно → компактные отступы */
+  @container (max-width:1060px) { #top .meta { display:none; } }          /* теснее → без статистики */
+  @container (max-width:900px)  { #top button .lbl { display:none; } }    /* совсем тесно → только иконки */
+  #top b { font-size:15px; } #top .meta { color:var(--dim); font-size:12px; }
+  #top .sp { flex:1; }
+  button, .btn { background:var(--panel); color:var(--fg); border:1px solid var(--line); border-radius:8px; padding:6px 10px; cursor:pointer; font:inherit; }
+  button:hover { border-color:var(--accent); } button.on { background:var(--accent); border-color:var(--accent); }
+  button:disabled { opacity:.35; cursor:default; } button:disabled:hover { border-color:var(--line); }
+  input[type=text], textarea { background:var(--panel); color:var(--fg); border:1px solid var(--line); border-radius:8px; padding:8px 10px; font:inherit; width:100%; }
+  #graph { position:fixed; inset:0; }
+  #legend { position:fixed; left:14px; top:calc(var(--top-h, 48px) + 8px); z-index:4; font-size:12px; color:var(--dim); background:#13131dcc; border:1px solid var(--line); border-radius:10px; padding:8px 10px; }
+  body.panel-open #legend { max-width:calc(100vw - min(560px, 100vw) - 28px); }   /* не заезжать под панель */
+  #legend div { display:flex; align-items:center; gap:6px; cursor:pointer; } #legend i { width:10px; height:10px; border-radius:50%; display:inline-block; }
+  #legend div.off { opacity:.3; }
+  #timeline { position:fixed; left:0; right:0; bottom:0; height:64px; padding:6px 14px 10px; background:linear-gradient(transparent, var(--bg) 40%); z-index:5; display:flex; align-items:end; gap:10px; transition:right .2s; }
+  body.panel-open #timeline { right:min(560px, 100vw); }   /* таймлайн тоже не под панелью */
+  #play { width:34px; height:34px; border-radius:50%; background:var(--accent); border:none; color:#fff; flex:none; }
+  #tl { flex:1; position:relative; height:44px; }
+  #hist { position:absolute; inset:0 0 14px 0; width:100%; height:30px; }
+  #slider { position:absolute; left:0; right:0; bottom:0; width:100%; accent-color:var(--accent); }
+  #tlabel { color:var(--dim); font-size:12px; width:120px; text-align:right; flex:none; }
+  #panel { position:fixed; right:0; top:0; bottom:0; width:min(560px, 100vw); background:var(--panel); border-left:1px solid var(--line);
+           transform:translateX(100%); transition:transform .2s; z-index:10; display:flex; flex-direction:column; }
+  #panel.open { transform:none; }
+  #phead { padding:12px 14px; border-bottom:1px solid var(--line); display:flex; gap:8px; align-items:center; }
+  #phead .sp { flex:1; font-weight:600; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  #panel, #phead, #pbody { box-sizing:border-box; }
+  #pbody { padding:12px 16px 40px; overflow-y:auto; overflow-x:hidden; flex:1; overflow-wrap:anywhere; }
+  #pbody video, #pbody audio, #pbody img { max-width:100%; box-sizing:border-box; }
+  .md pre { overflow-x:auto; }   /* длинные строки кода в статьях — прокрутка внутри, не наружу */
+  .msg { padding:6px 0; border-bottom:1px solid #1d1d2b; } .msg.key { background:#e5397b14; border-left:3px solid var(--accent); padding-left:8px; }
+  .msg .a { color:#9d9dff; font-weight:600; } .msg .d { color:var(--dim); font-size:11px; margin-left:6px; }
+  .media { margin:4px 0 0; padding:6px 8px; background:#0e0e17; border-radius:6px; color:#c9c9dc; font-size:12.5px; white-space:pre-wrap; }
+  .media b { color:#ffb4d0; font-weight:600; }
+  .media.mdesc { display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden; cursor:pointer; }
+  .media.mdesc.full { display:block; cursor:auto; }
+  details.media { white-space:normal; }
+  details.media summary { cursor:pointer; color:#ffb4d0; font-weight:600; user-select:none; }
+  details.media > div { white-space:pre-wrap; margin-top:4px; }
+  .pgrid { display:grid; grid-template-columns:repeat(auto-fill, minmax(120px, 1fr)); gap:6px; margin:4px 0 2px; }
+  .pgrid img { width:100%; height:140px; object-fit:cover; border-radius:8px; cursor:zoom-in; background:#0e0e17; display:block; }
+  .voice audio { width:100%; }
+  video.vfile { width:100%; max-height:320px; border-radius:8px; background:#000; margin:4px 0; display:block; }
+  video.round { width:200px; height:200px; border-radius:50%; object-fit:cover; background:#000; margin:4px 0; display:block; }
+  .frow { margin:4px 0 0; font-size:12.5px; word-break:break-all; }
+  .frow a { color:#ff7aa8; }
+  #viewer { position:fixed; inset:0; z-index:50; background:rgba(4,4,9,.94); display:none; align-items:center; justify-content:center; cursor:zoom-out; }
+  #viewer.open { display:flex; }
+  #vimg { max-width:94vw; max-height:92vh; border-radius:6px; }
+  #viewer .vbtn { position:fixed; top:50%; transform:translateY(-50%); font-size:18px; line-height:1; padding:10px 13px; background:#13131dd9; }
+  #vprev { left:12px; } #vnext { right:12px; }
+  #viewer .vx { position:fixed; top:14px; right:14px; background:#13131dd9; font-size:14px; padding:6px 10px; }
+  #vcnt { position:fixed; bottom:14px; left:50%; transform:translateX(-50%); color:var(--dim); font-size:12px; }
+  .pill { display:inline-block; font-size:11px; padding:1px 7px; border-radius:10px; background:#232334; color:#c8c8dd; margin:0 4px 4px 0; }
+  .sum { background:#0e0e17; border-radius:8px; padding:10px 12px; margin:8px 0 12px; }
+  .scheme { border-left:3px solid #f5a524; }
+  .hit { padding:8px 0; border-bottom:1px solid #1d1d2b; cursor:pointer; } .hit:hover { color:#fff; } .hit .d { color:var(--dim); font-size:11px; }
+  .sfil { display:flex; gap:8px; align-items:center; flex-wrap:wrap; margin-top:8px; font-size:12.5px; color:var(--dim); }
+  .sfil label { display:flex; gap:4px; align-items:center; cursor:pointer; }
+  select, input[type=checkbox] { accent-color:var(--accent); }
+  select { background:var(--panel); color:var(--fg); border:1px solid var(--line); border-radius:8px; padding:5px 8px; font:inherit; font-size:12.5px; }
+  mark { background:#e5397b40; color:#ffd0e0; border-radius:3px; padding:0 2px; }
+  .mh { margin:3px 0 0 2px; font-size:12.5px; color:#c9c9dc; cursor:pointer; } .mh:hover { color:#fff; } .mh .a { color:#9d9dff; }
+  .warn { margin-top:8px; padding:6px 10px; border:1px solid #f5a52466; border-radius:8px; color:#f5c26b; font-size:12.5px; }
+  .msg.flash { animation: flashfade 4s ease-out; }
+  @keyframes flashfade { from { background:#f5a52444; } to { background:transparent; } }
+  .msg.hit { box-shadow: inset 0 0 0 1px #f5a52480; }          /* постоянная тонкая рамка у найденного */
+  .msg.noise { opacity:.55; }                                   /* noise из раскрытой группы — тусклее */
+  .rq { font-size:11.5px; color:var(--dim); cursor:pointer; margin:1px 0 2px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  .rq:hover { color:var(--fg); }
+  .hid { font-size:11.5px; color:var(--dim); padding:3px 8px; margin:2px 0; border:1px dashed #2c2c40; border-radius:8px;
+         cursor:pointer; user-select:none; }
+  .hid:hover { color:var(--fg); border-color:var(--dim); }
+  .mrow { display:flex; align-items:center; gap:6px; margin:0 0 10px; flex-wrap:wrap; }
+  .mrow .mbtn { font-size:12px; padding:3px 9px; border-radius:12px; }
+  .mrow .cnt { color:var(--dim); font-size:12px; margin-left:auto; }
+  #bAnon.on { background:var(--accent); border-color:var(--accent); color:#fff; }
+  .md h1 { font-size:20px; } .md h2 { font-size:16px; margin-top:22px; } .md a { color:#ff7aa8; cursor:pointer; text-decoration:none; }
+  .md code { background:#0e0e17; padding:1px 4px; border-radius:4px; }
+  .md hr { border:none; border-top:1px solid var(--line); }
+  #arts input { margin-bottom:10px; } #arts .sec { color:var(--dim); text-transform:uppercase; font-size:11px; margin:14px 0 4px; }
+  #arts .it { padding:3px 0; cursor:pointer; } #arts .it:hover { color:var(--accent); }
+  .ev { padding:7px 0 8px; border-bottom:1px solid #1d1d2b; }
+  .evh { display:flex; align-items:center; flex-wrap:wrap; gap:6px; }
+  .evd { color:var(--dim); font-size:12px; white-space:nowrap; }
+  .evb { display:inline-block; font-size:11px; font-weight:700; padding:1px 7px; border-radius:10px; color:#0b0b12; }
+  .evdet { font-size:12.5px; color:var(--dim); margin:3px 0 0; }
+  .evsrc { margin-top:4px; font-size:12px; display:flex; align-items:center; flex-wrap:wrap; gap:6px; color:var(--dim); }
+  .evsrc a { color:#ff7aa8; cursor:pointer; text-decoration:none; }
+  .evsrc .ebtn { font-size:11.5px; padding:2px 9px; border-radius:12px; }
+  .evgrp h3 { margin:16px 0 2px; font-size:13.5px; }
+  details.evgrp summary { cursor:pointer; margin:16px 0 2px; font-size:13.5px; font-weight:600; user-select:none; }
+  .evfil input { width:auto; flex:1 1 150px; }
+  .exgh { margin:16px 0 4px; font-size:13.5px; font-weight:600; }
+  .extopic { padding:2px 0 10px; border-bottom:1px solid #1d1d2b; }
+  .exth { font-weight:600; }
+  .exp { padding:5px 0 3px 10px; border-left:2px solid #2c2c40; border-radius:0 6px 6px 0; margin:5px 0; }
+  .exbar { height:4px; max-width:280px; background:#232334; border-radius:2px; margin:3px 0 2px; }
+  .exbar i { display:block; height:100%; background:var(--accent); border-radius:2px; }
+  .exex { font-size:12px; } .exex a, .expt a { color:#ff7aa8; cursor:pointer; text-decoration:none; }
+  .expcard { border-bottom:1px solid #1d1d2b; padding:7px 0; }
+  .expcard summary { cursor:pointer; user-select:none; }
+  .expcard .exbd { padding:6px 0 4px 10px; }
+  .expt { font-size:12.5px; margin:3px 0; }
+  .msg .a { cursor:pointer; }   /* клик по имени автора сообщения — карточка в «кто в чём» */
+  #tip { position:fixed; pointer-events:none; background:#13131df0; border:1px solid var(--line); border-radius:8px; padding:6px 8px; font-size:12px; max-width:360px; z-index:20; display:none; }
+  #pbody.chatbody { display:flex; flex-direction:column; overflow:hidden; padding:0; }
+  #chatTop { display:flex; align-items:center; gap:8px; padding:10px 14px 0; flex-wrap:wrap; }
+  #chatTop .sp { flex:1; }
+  .cper { padding:3px 9px; border-radius:12px; font-size:12px; }
+  .cper.on { background:var(--accent); border-color:var(--accent); color:#fff; }
+  .cpin { display:flex; align-items:center; gap:8px; margin:8px 14px 0; padding:5px 10px; background:#1a1a2a;
+          border:1px dashed #3a3a55; border-radius:10px; font-size:12.5px; color:#c9c9dc; }
+  .cpin button { padding:2px 8px; font-size:11px; }
+  .cpast { margin:8px 14px 0; font-size:12.5px; }
+  .cpast summary { cursor:pointer; color:var(--dim); user-select:none; }
+  .cpast .it { padding:4px 0; cursor:pointer; } .cpast .it:hover { color:var(--accent); }
+  #chatFeed { flex:1; overflow-y:auto; padding:12px 14px 8px; }
+  #chatBar { display:flex; gap:8px; align-items:flex-end; padding:10px 14px 12px; border-top:1px solid var(--line); }
+  #chatBar textarea { flex:1; resize:vertical; min-height:42px; max-height:140px; }
+  #chatBar button { flex:none; }
+  .cmsg { display:flex; margin:10px 0; }
+  .cmsg.u { justify-content:flex-end; }
+  .cmsg.a { flex-direction:column; align-items:stretch; }
+  .bub { max-width:94%; padding:9px 12px; border-radius:12px; overflow-wrap:anywhere; }
+  .cmsg.u .bub { background:#2a1a28; border:1px solid #4a2338; white-space:pre-wrap; border-top-right-radius:4px; }
+  .cmsg.a .bub { background:#0e0e17; border:1px solid var(--line); border-top-left-radius:4px; }
+  .cmsg .warn { max-width:94%; }
+  .cwait { color:var(--dim); }   /* «провайдер занят, повторяю (n/5)…» — серым под вопросом */
+  .csrc { margin-top:4px; font-size:12.5px; }
+  .csrc summary { cursor:pointer; color:var(--dim); user-select:none; }
+  .cempty { color:var(--dim); margin:24px 10px; font-size:13px; }
+  /* --- оверлей «Темы во времени» --------------------------------------------- */
+  #twrap { position:fixed; inset:0; z-index:40; background:rgba(4,4,9,.66); display:none; align-items:center; justify-content:center; }
+  #twrap.open { display:flex; }
+  #tpanel { width:85vw; height:70vh; background:var(--panel); border:1px solid var(--line); border-radius:14px;
+            display:flex; flex-direction:column; overflow:hidden; box-shadow:0 18px 60px #000c; }
+  #thead { display:flex; align-items:center; gap:10px; padding:12px 16px; border-bottom:1px solid var(--line); flex:none; }
+  #thead b { font-size:15px; white-space:nowrap; }
+  #thead .tsub { color:var(--dim); font-size:12px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  #thead .sp { flex:1; }
+  #tctl { padding:10px 16px 0; flex:none; }
+  #tctl .grp { display:inline-flex; gap:4px; }
+  #tstat { color:var(--dim); font-size:12px; margin-left:auto; }
+  #tlegend { display:flex; flex-wrap:wrap; gap:6px 14px; padding:8px 16px 4px; font-size:12px; flex:none; max-height:72px; overflow-y:auto; }
+  #tlegend .li { display:inline-flex; align-items:center; gap:5px; cursor:pointer; border-radius:6px; padding:2px 5px; user-select:none; }
+  #tlegend .li:hover { background:#ffffff10; }
+  #tlegend .li.off { opacity:.35; }
+  #tlegend .li i { width:11px; height:11px; border-radius:3px; display:inline-block; flex:none; }
+  #tlegend .li .t { color:var(--dim); }
+  #tchart { flex:1; min-height:0; position:relative; margin:0 10px; }
+  #tchart svg { display:block; }
+  #ttip { position:absolute; top:8px; right:10px; background:#13131df2; border:1px solid var(--line); border-radius:8px;
+          padding:7px 9px; font-size:12px; max-width:320px; z-index:3; display:none; }
+  #ttip .tt { color:var(--dim); margin-bottom:4px; }
+  #ttip .tr { display:flex; align-items:center; gap:6px; padding:2px 4px; border-radius:5px; cursor:pointer; min-width:150px; }
+  #ttip .tr:hover { background:#ffffff12; }
+  #ttip .tr.na { cursor:default; } #ttip .tr.na:hover { background:none; }
+  #ttip .tr i { width:9px; height:9px; border-radius:2px; display:inline-block; flex:none; }
+  #ttip .tr span { overflow:hidden; text-overflow:ellipsis; white-space:nowrap; max-width:180px; }
+  #ttip .tr b { margin-left:auto; font-weight:600; }
+  #ttip .ts { border-top:1px solid var(--line); margin-top:4px; padding-top:4px; color:var(--dim); display:flex; gap:6px; }
+  #ttip .ts b { margin-left:auto; color:var(--fg); }
+  #tfoot { display:flex; align-items:center; gap:12px; padding:6px 16px 10px; color:var(--dim); font-size:12px; flex:none; }
+  #tfoot a { color:#ff7aa8; cursor:pointer; }
+  #ttable { flex:1; min-height:0; overflow:auto; margin:4px 16px 10px; font-size:12px; }
+  #ttable table { border-collapse:collapse; }
+  #ttable th, #ttable td { border:1px solid #232334; padding:3px 8px; text-align:right; white-space:nowrap; }
+  #ttable th { position:sticky; top:0; background:var(--panel); color:var(--dim); font-weight:600; z-index:2; }
+  #ttable th:first-child, #ttable td:first-child { text-align:left; position:sticky; left:0; background:var(--panel); z-index:1; }
+  #ttable th:first-child { z-index:3; }
+  #ttable td.z { color:#3d3f52; }
+  #ttable tr.tot td { border-top:2px solid var(--line); color:var(--fg); font-weight:600; }
+  #ttable th i { display:inline-block; width:9px; height:9px; border-radius:2px; margin-right:4px; }
+</style>
+</head>
+<body>
+<div id="graph"></div>
+<div id="top">
+  <b>MXW · карта</b><span class="meta" id="stats"></span><span class="sp"></span>
+  <button id="bMode" title="Раскладка карты: по веткам чата или по смыслу"><span class="ic">🧭</span><span class="lbl">вид: смысл</span></button>
+  <button id="bSearch" title="Поиск по разговорам"><span class="ic">🔎</span><span class="lbl">Поиск</span></button>
+  <button id="bChat" title="Чат с базой: диалог с уточняющими вопросами, ответ по разговорам чата и статьям"><span class="ic">💬</span><span class="lbl">Чат</span></button>
+  <button id="bArts" title="База знаний — статьи"><span class="ic">📚</span><span class="lbl">База знаний</span></button>
+  <button id="bEvents" title="Доска активностей: события с датами из чата (минты, клеймы, вайтлисты, дедлайны)"><span class="ic">📅</span><span class="lbl">Активности</span></button>
+  <button id="bExperts" title="Кто в чём: экспертиза участников по темам (кластеры, категории, схемы)"><span class="ic">👥</span><span class="lbl">Кто в чём</span></button>
+  <button id="bTrends" title="Темы во времени: активность тем (кластеры/категории) по неделям"><span class="ic">📈</span><span class="lbl">Темы</span></button>
+  <button id="bDrop" title="Показывать разговоры, помеченные как мусор"><span class="ic">🗑</span><span class="lbl">мусор: скрыт</span></button>
+  <button id="bAnon" title="Стример-мод: скрыть ники участников"><span class="ic">👁</span><span class="lbl">ники</span></button>
+</div>
+<div id="legend"></div>
+<div id="timeline">
+  <button id="play">▶</button>
+  <div id="tl"><canvas id="hist"></canvas><input id="slider" type="range" min="0" max="1000" value="1000"></div>
+  <div id="tlabel">сейчас</div>
+</div>
+<div id="panel"><div id="phead"><button id="pback">←</button><span class="sp" id="ptitle"></span><button id="pclose">✕</button></div><div id="pbody"></div></div>
+<div id="viewer"><img id="vimg" alt=""><button id="vprev" class="vbtn">←</button><button id="vnext" class="vbtn">→</button><button id="vclose" class="vx">✕</button><span id="vcnt"></span></div>
+<div id="twrap"><div id="tpanel">
+  <div id="thead"><b>📈 Темы во времени</b><span class="tsub">не-бот сообщения в полезных разговорах, по неделям</span><span class="sp"></span><button id="tclose" title="закрыть (Esc)">✕</button></div>
+  <div id="tctl" class="mrow">
+    <span class="grp" id="tby"><button class="mbtn" data-v="cluster">кластеры</button><button class="mbtn" data-v="category">категории</button></span>
+    <span class="grp" id="tper"><button class="mbtn" data-v="all">всё</button><button class="mbtn" data-v="m3">3 мес</button><button class="mbtn" data-v="m1">месяц</button></span>
+    <span id="tstat">загружаю…</span>
+  </div>
+  <div id="tlegend"></div>
+  <div id="tchart"><div id="ttip"></div></div>
+  <div id="ttable" hidden></div>
+  <div id="tfoot"><a id="ttoggle">таблица</a><span id="thint">клик по слою или строке тултипа — тема на карте к концу этой недели</span></div>
+</div></div>
+<div id="tip"></div>
+<script>
+const CAT = { nft:["NFT","#7c6cff"], ai_dev:["AI и разработка","#2ec5ff"], tools:["Инструменты","#3ddc97"], security:["Безопасность","#ff5d5d"],
+  trading:["Трейдинг","#f5a524"], drops_testnets:["Дропы и тестнеты","#c56cff"], market_news:["Новости рынка","#9aa4b5"],
+  predictions:["Предикшены","#ff8fd8"], jobs_income:["Работа","#8be04e"], community:["Комьюнити","#ffd23f"], other:["Разное","#6e7891"], null:["мусор","#3a3a4d"] };
+const $ = s => document.querySelector(s);
+let G, data, shown = new Set(Object.keys(CAT).filter(k => k !== "null")), showDrop = false, cutoff = null, history = [],
+    mode = "branches", hl = null;   // hl: Set of node ids from search → dim the rest, white outline on hits
+let anon = localStorage.getItem("mxw_anon") === "1",   // стример-мод: ники → «Участник XXX»
+    convMode = localStorage.getItem("mxw_convMode") || "main",   // главное | noflood | all
+    lastQ = null, curConv = null, convExpanded = new Set(), curGroups = [];
+// --- чат с базой ----------------------------------------------------------------
+const CHATS_KEY = "mxw_chats";
+let chats = { list: [] };   // list[0] — текущий диалог, дальше — прошлые (до 20 всего)
+let chat = null, chatStream = false, chatAbort = null, chatDraft = "", chatLive = false, chatTok = 0, chatPast = [];
+try { const st = JSON.parse(localStorage.getItem(CHATS_KEY)); if (st && Array.isArray(st.list)) chats = st; } catch { }
+function saveChats() { try { localStorage.setItem(CHATS_KEY, JSON.stringify({ list: chats.list.slice(0, 20) })); } catch { } }
+const esc = s => (s || "").replace(/[&<>]/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;"}[c]));
+const escAttr = s => esc(s).replace(/"/g, "&quot;");
+
+// --- стример-мод ------------------------------------------------------------
+const fnv = s => { let h = 0x811c9dc5; for (let i = 0; i < s.length; i++) { h ^= s.charCodeAt(i); h = Math.imul(h, 0x01000193) >>> 0; } return h >>> 0; };
+const anonName = s => "Участник " + (fnv(s) & 0xfff).toString(16).padStart(3, "0");
+const authorColor = s => `hsl(${fnv(s) % 360} 70% 76%)`;
+let authorLUT = new Map();   // lowercase имя → каноническое имя автора (для fwd)
+
+function applyAnon(root) {   // заменяет имена в data-author/data-fwd псевдонимами (или наоборот)
+  (root || document).querySelectorAll("[data-author]").forEach(el => {
+    const name = el.dataset.author || "";
+    if (anon && name) { el.textContent = anonName(name); el.style.color = authorColor(name); }
+    else { el.textContent = name; el.style.color = ""; }
+  });
+  (root || document).querySelectorAll("[data-fwd]").forEach(el => {
+    const name = el.dataset.fwd || "";
+    const canon = anon && name ? authorLUT.get(name.toLowerCase()) : undefined;
+    el.textContent = canon != null ? anonName(canon) : name;   // совпал с автором → псевдоним; канал — как есть
+  });
+}
+
+function setAnon(v) {
+  anon = v; localStorage.setItem("mxw_anon", v ? "1" : "0");
+  $("#bAnon .ic").textContent = v ? "🙈" : "👁"; $("#bAnon .lbl").textContent = v ? "ники скрыты" : "ники";
+  $("#bAnon").classList.toggle("on", v);
+  if ($("#panel").classList.contains("open")) applyAnon($("#pbody"));
+}
+setAnon(anon);
+$("#bAnon").onclick = () => setAnon(!anon);
+
+async function api(path, opt) { const r = await fetch(path, opt); if (!r.ok) throw new Error((await r.json()).error || r.status); return path.startsWith("/api/article?") ? r.text() : r.json(); }
+
+function linkify(html) {   // [[nft-c0263-07]] → conversation, [[Article]] → article
+  return html.replace(/\[\[([^\]|]+)(?:\|([^\]]+))?\]\]/g, (m, id, label) =>
+    /^(nft|ai|life|crypto|perps|predict|soft|shitki|important)-c[\d-]+$/.test(id)
+      ? `<a onclick="openConv('${id}')">[${label || id}]</a>` : `<a onclick="openArticleByName('${id.replace(/'/g, "\\'")}')">${label || id}</a>`);
+}
+
+function panel(title, html, push = true) {
+  if (push && $("#panel").classList.contains("open"))   // открытый чат восстанавливаем из состояния, не из снапшота
+    history.push(chatLive ? ["Чат", null, "chat"] : [$("#ptitle").textContent, $("#pbody").innerHTML]);
+  chatLive = false;
+  expLive = false;
+  $("#pbody").className = "";
+  $("#ptitle").textContent = title; $("#pbody").innerHTML = html; $("#pbody").scrollTop = 0; $("#panel").classList.add("open");
+  document.body.classList.add("panel-open");   // #top/#timeline сжимаются до левой границы панели
+  applyAnon($("#pbody"));
+}
+$("#pclose").onclick = () => { $("#panel").classList.remove("open"); document.body.classList.remove("panel-open"); history = []; resetHl(); chatLive = false; };
+$("#pback").onclick = () => { const h = history.pop(); if (!h) return; if (h[2] === "chat") chatPanel(false); else panel(h[0], h[1], false); };
+new ResizeObserver(() => document.body.style.setProperty("--top-h", $("#top").offsetHeight + "px")).observe($("#top"));   // #top в 2 строки → сдвинуть легенду ниже
+
+// --- панель разговора: режимы «Главное / Без флуда / Всё» --------------------
+let qWords = [];
+const escRe = s => s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+const markHits = t => qWords.length && t   // найденные слова → <mark> (только в hit-сообщениях)
+  ? t.replace(new RegExp("(?<![\\p{L}\\p{N}_])(" + qWords.slice().sort((a, b) => b.length - a.length).map(escRe).join("|") + ")", "giu"), "<mark>$1</mark>")
+  : t;
+
+function quoteHtml(m) {   // «↩ <начало текста исходного, 60 символов>» — клик прыгает к исходному
+  const src = curConv.byId.get(m.reply_to);
+  if (!src) return "";
+  const t = ((src.text || "") || (src.media_text || []).map(x => x.text).join(" ")
+    || (src.media || []).join(" ") || "…").replace(/\s+/g, " ").trim().slice(0, 60);
+  return `<div class="rq" onclick="jumpToMsg(${src.id})" title="ответ на #${src.id}">↩ ${esc(t)}</div>`;
+}
+
+// --- медиа-оригиналы из Telegram-экспорта (/api/media?i=…) ---------------------
+const humanSize = n => n == null ? "" : n < 1024 ? n + " Б" : n < 1048576 ? (n / 1024).toFixed(1) + " KB" : (n / 1048576).toFixed(1) + " MB";
+const DANGER_RE = /\.(zip|exe|bat|js|apk|msi)$/i;
+const mediaHit = t => qWords.length && qWords.some(w => (t || "").toLowerCase().includes(w));
+const mUrl = (f, thumb) => "/api/media?i=" + f.i + (thumb && f.th ? "&thumb=1" : "");
+
+function mtFor(m, f, used) {   // расшифровка/описание, привязанное к файлу по kind+имени
+  const k = m.media_text.findIndex((x, i) => !used.has(i) && x.kind === f.kind && x.file === f.name);
+  if (k < 0) return null;
+  used.add(k);
+  return m.media_text[k].text || "";
+}
+
+function imgFail(img) {   // миниатюра не загрузилась → пробуем оригинал; не вышло — убираем ячейку
+  if (img.dataset.r) { img.remove(); return; }
+  img.dataset.r = "1";
+  img.src = img.src.replace("&thumb=1", "");
+}
+
+function mediaHtml(m) {   // файлы сообщения по kind + привязанные расшифровки
+  const files = m.files || [];
+  const used = new Set();
+  const fmt = t => m.hit ? markHits(esc(t)) : esc(t);
+  const dtHtml = t => `<details class="media"${mediaHit(t) ? " open" : ""}><summary>расшифровка</summary><div>${fmt(t)}</div></details>`;
+  const photoDesc = t => `<div class="media mdesc${mediaHit(t) ? " full" : ""}" title="клик — развернуть целиком" onclick="this.classList.toggle('full')">${fmt(t)}</div>`;
+  let h = "";
+  const photos = files.filter(f => f.kind === "photos");
+  if (photos.length) {
+    h += `<div class="pgrid">` + photos.map(f =>
+      `<img loading="lazy" alt="" src="${mUrl(f, 1)}" onclick="openViewer(${f.i})" onerror="imgFail(this)">`).join("") + `</div>`;
+    for (const f of photos) { const t = mtFor(m, f, used); if (t) h += photoDesc(t); }
+  }
+  for (const f of files.filter(f => f.kind === "voice_messages")) {
+    h += `<div class="voice"><audio controls preload="none" src="${mUrl(f)}"></audio></div>`;
+    const t = mtFor(m, f, used); if (t) h += dtHtml(t);
+  }
+  for (const f of files.filter(f => f.kind === "round_video_messages")) {
+    h += `<video class="round" controls preload="none" src="${mUrl(f)}"></video>`;
+    const t = mtFor(m, f, used); if (t) h += dtHtml(t);
+  }
+  const anim = (m.media || []).some(l => /Animation/i.test(l));   // GIF-анимация из экспорта
+  for (const f of files.filter(f => f.kind === "video_files")) {
+    h += `<video class="vfile" ${anim ? "autoplay muted loop playsinline" : 'controls preload="none"'} src="${mUrl(f)}"></video>`;
+    const t = mtFor(m, f, used); if (t) h += dtHtml(t);
+  }
+  for (const f of files.filter(f => f.kind === "files")) {
+    h += `<div class="frow">📎 <a href="${mUrl(f)}">${esc(f.name)}</a> <span class="d">(${humanSize(f.size)})</span> — <a href="${mUrl(f)}">скачать</a></div>`;
+    if (DANGER_RE.test(f.name)) h += `<div class="warn">⚠ архив/программа из чата — не запускай без проверки</div>`;
+  }
+  return h;
+}
+
+// --- полноэкранный просмотр фото разговора --------------------------------------
+let curPhotos = [], vPos = 0;
+function openViewer(i) {
+  const p = curPhotos.indexOf(i);
+  if (p < 0) return;
+  vPos = p;
+  $("#vimg").src = "/api/media?i=" + i;
+  $("#vcnt").textContent = curPhotos.length > 1 ? `${p + 1} / ${curPhotos.length}` : "";
+  $("#vprev").style.display = $("#vnext").style.display = curPhotos.length > 1 ? "" : "none";
+  $("#viewer").classList.add("open");
+}
+function closeViewer() { $("#viewer").classList.remove("open"); $("#vimg").src = ""; }
+function stepPhoto(d) {
+  vPos = (vPos + d + curPhotos.length) % curPhotos.length;
+  $("#vimg").src = "/api/media?i=" + curPhotos[vPos];
+  $("#vcnt").textContent = `${vPos + 1} / ${curPhotos.length}`;
+}
+$("#viewer").onclick = e => { if (e.target.id === "vimg" || e.target.id === "viewer") closeViewer(); };
+$("#vprev").onclick = e => { e.stopPropagation(); stepPhoto(-1); };
+$("#vnext").onclick = e => { e.stopPropagation(); stepPhoto(1); };
+$("#vclose").onclick = closeViewer;
+document.addEventListener("keydown", e => {   // Esc — закрыть, ←/→ — соседнее фото
+  if (!$("#viewer").classList.contains("open")) return;
+  if (e.key === "Escape") closeViewer();
+  else if (e.key === "ArrowLeft") stepPhoto(-1);
+  else if (e.key === "ArrowRight") stepPhoto(1);
+});
+
+function msgHtml(m) {
+  const txt = m.hit ? markHits(esc(m.text)) : esc(m.text);
+  const hasFiles = (m.files || []).length > 0;
+  const label = m.media.length && !hasFiles && !m.media_text.length ? ` <span class="d">${esc(m.media.join(" "))}</span>` : "";
+  const media = hasFiles ? mediaHtml(m) +   // расшифровки без своего файла в индексе — прежним блоком
+      m.media_text.filter(x => !m.files.some(f => f.kind === x.kind && f.name === x.file))
+        .map(x => `<div class="media"><b>${esc(x.kind)}</b> ${m.hit ? markHits(esc(x.text)) : esc(x.text)}</div>`).join("")
+    : m.media_text.map(x => `<div class="media"><b>${esc(x.kind)}</b> ${m.hit ? markHits(esc(x.text)) : esc(x.text)}</div>`).join("");
+  return `<div class="msg ${m.key ? "key" : ""} ${m.hit ? "hit" : ""} ${m.noise ? "noise" : ""}" id="m${m.id}">${quoteHtml(m)}
+      <span class="a" data-author="${escAttr(m.author)}" title="кто это в чём" onclick="openExpertCard(this.dataset.author)">${esc(m.author)}</span><span class="d">#${m.id} · ${m.ts.slice(5,16)}${m.fwd ? ` · переслано от <span class="fa" data-fwd="${escAttr(m.fwd)}">${esc(m.fwd)}</span>` : ""}</span>
+      <div>${txt}${label}</div>
+      ${media}</div>`;
+}
+
+function renderMsgs() {   // по convMode: видимые сообщения + свёрнутые группы скрытых подряд
+  const d = curConv, msgs = d.messages;
+  const vis = msgs.map(m => convMode === "all" ? true : convMode === "noflood" ? !m.noise : !!m.show);
+  curGroups = [];
+  for (let s = null, k = 0; k <= msgs.length; k++) {   // группа = подряд идущие скрытые
+    const v = k < msgs.length ? vis[k] : true;
+    if (!v && s == null) s = k;
+    if (v && s != null) { curGroups.push({ key: msgs[s].id, s, e: k }); s = null; }
+  }
+  const gByStart = {};
+  for (const g of curGroups) { gByStart[g.s] = g; if (convExpanded.has(g.key)) for (let i = g.s; i < g.e; i++) vis[i] = true; }
+  let h = "", k = 0;
+  while (k < msgs.length) {
+    if (vis[k]) h += msgHtml(msgs[k]), k++;
+    else { const g = gByStart[k]; h += `<div class="hid" onclick="expandGroup(${g.key})">… скрыто ${g.e - g.s} сообщ.</div>`; k = g.e; }
+  }
+  $("#msgs").innerHTML = h;
+  $("#pcnt").textContent = `показано ${$("#msgs").querySelectorAll(".msg").length} из ${msgs.length}`;
+  document.querySelectorAll("#pbody .mbtn").forEach(b => b.classList.toggle("on", b.dataset.m === convMode));
+  applyAnon($("#msgs"));
+}
+
+function setConvMode(m) { convMode = m; localStorage.setItem("mxw_convMode", m); renderMsgs(); }
+function expandGroup(key) {   // клик по «… скрыто N» — раскрыть именно эту группу
+  convExpanded.add(key); renderMsgs();
+  const el = document.getElementById("m" + key);
+  if (el) el.scrollIntoView({ block: "nearest" });
+}
+function jumpToMsg(id) {   // прокрутка к сообщению; если оно в свёрнутой группе — раскрыть её
+  let el = document.getElementById("m" + id);
+  if (!el) {
+    const k = curConv.messages.findIndex(m => m.id === id);
+    const g = curGroups.find(g => k >= g.s && k < g.e);
+    if (!g) return;
+    convExpanded.add(g.key); renderMsgs();
+    el = document.getElementById("m" + id);
+  }
+  if (el) { el.scrollIntoView({ block: "center" }); el.classList.add("flash"); setTimeout(() => el.classList.remove("flash"), 4000); }
+}
+
+async function openConv(id, focusMsg, q) {
+  let u = "/api/conv?id=" + encodeURIComponent(id);
+  if (q) u += "&q=" + encodeURIComponent(q);
+  if (focusMsg != null) u += "&focus=" + encodeURIComponent(focusMsg);
+  const d = await api(u);
+  qWords = q ? (q.toLowerCase().match(/[\p{L}\p{N}_]+/gu) || []).filter(w => w.length >= 2) : [];
+  curConv = d; d.byId = new Map(d.messages.map(m => [m.id, m])); convExpanded = new Set();
+  curPhotos = [];   // все фото разговора — для ←/→ в полноэкранном просмотре
+  for (const m of d.messages) for (const f of (m.files || [])) if (f.kind === "photos") curPhotos.push(f.i);
+  closeViewer();
+  let h = `<div><span class="pill">${esc(d.topic)}</span><span class="pill">${CAT[d.category]?.[0] || "мусор"}</span><span class="pill">${d.verdict}</span>${d.tags.map(t => `<span class="pill">#${esc(t)}</span>`).join("")}</div>
+    <div class="sum">${esc(d.summary) || "<i>без выжимки</i>"}</div>`;
+  if (d.has_scheme) h += `<div class="sum scheme"><b>Схема</b> (${d.scheme_types.join(", ")}): ${esc(d.scheme_summary)}</div>`;
+  h += `<div class="d" style="color:var(--dim);font-size:12px">${(d.start||"").slice(0,16)} — ${(d.end||"").slice(11,16)} · ${d.messages.length} сообщ.</div>
+    <div class="mrow"><button class="mbtn${convMode==="main"?" on":""}" data-m="main" onclick="setConvMode('main')">Главное</button><button class="mbtn${convMode==="noflood"?" on":""}" data-m="noflood" onclick="setConvMode('noflood')">Без флуда</button><button class="mbtn${convMode==="all"?" on":""}" data-m="all" onclick="setConvMode('all')">Всё</button><button class="mbtn" onclick="askAboutConv('${id}')">💬 спросить про это</button><span class="cnt" id="pcnt"></span></div>
+    <div id="msgs"></div>`;
+  panel(id, h);
+  renderMsgs();
+  if (focusMsg != null) jumpToMsg(focusMsg);   // прокрутка к сообщению из сниппета поиска + подсветка
+  const n = data.nodes.find(n => n.id === id); if (n && n.x !== undefined && G) { G.centerAt(n.x, n.y, 600); G.zoom(4, 600); }
+}
+
+async function openArticle(path) { const md = await api("/api/article?path=" + encodeURIComponent(path));
+  const title = path.split("/").pop().replace(/\.md$/, "");
+  panel(title, `<div class="mrow"><button class="mbtn" onclick="askAboutArticle('${path.replace(/'/g, "\\'")}', '${title.replace(/'/g, "\\'")}')">💬 спросить про это</button></div><div class="md">${linkify(marked.parse(md.replace(/^---[\s\S]*?---\n/, "")))}</div>`); }
+async function openArticleByName(name) { try { const a = await api("/api/find_article?name=" + encodeURIComponent(name)); openArticle(a.path); } catch { } }
+
+$("#bArts").onclick = async () => {
+  const list = await api("/api/articles"); const secs = {};
+  for (const a of list) (secs[a.section || "Главное"] ||= []).push(a);
+  const render = f => Object.entries(secs).map(([s, items]) => { const it = items.filter(a => a.title.toLowerCase().includes(f));
+    return it.length ? `<div class="sec">${esc(s)} (${it.length})</div>` + it.map(a => `<div class="it" onclick="openArticle('${a.path.replace(/'/g, "\\'")}')">${esc(a.title)}</div>`).join("") : ""; }).join("");
+  panel("База знаний", `<div id="arts"><input type="text" id="af" placeholder="фильтр по названию"><div id="al">${render("")}</div></div>`);
+  $("#af").oninput = e => $("#al").innerHTML = render(e.target.value.toLowerCase());
+};
+
+// --- доска активностей (extract_events.py → /api/events) ----------------------
+const EVTYPE = { mint:["минт","#7c6cff"], claim:["клейм","#2ec5ff"], whitelist:["вайтлист","#3ddc97"],
+  testnet:["тестнет","#c56cff"], snapshot:["снапшот","#9aa4b5"], tge:["TGE","#ff5d5d"], airdrop:["аирдроп","#ff8fd8"],
+  deadline:["дедлайн","#f5a524"], launch:["запуск","#8be04e"], other:["прочее","#6e7891"] };
+const EVGROUPS = [["active","Идёт сейчас"], ["soon","Скоро (14 дней)"], ["future","Позже"], ["past","Прошло"], ["undated","Без даты"]];
+let evAll = [];
+
+function evRow(e) {
+  const t = EVTYPE[e.type] || EVTYPE.other;
+  const tm = e.time ? " · " + e.time + " UTC" : "";
+  const when = !e.date && !e.end_date ? "без даты"
+    : !e.date ? "до " + e.end_date + tm   // только end_date: «до <end_date>»
+    : !e.end_date || e.end_date === e.date ? e.date + tm
+    : e.date + " → " + (e.status === "active" ? "до " : "") + e.end_date + tm;   // в «Идёт сейчас» — «до …»
+  const src = e.sources || [];
+  return `<div class="ev">
+    <div class="evh"><span class="evd">${esc(when)}</span><span class="evb" style="background:${t[1]}">${t[0]}</span><b>${esc(e.project)}</b> — ${esc(e.title)}</div>
+    ${e.details ? `<div class="evdet">${esc(e.details)}</div>` : ""}
+    <div class="evsrc">${src.length ? "источники: " + src.map(s => `<a onclick="openConv('${s.id}',${(s.msg_ids || [])[0] ?? null})">${s.id}</a>`).join(" ") : ""}${src.length ? ` <button class="ebtn" onclick="evMap(${e.eid})">на карте</button>` : ""}</div>
+  </div>`;
+}
+
+function evMap(eid) {   // подсветить узлы-источники события (как подсветка поиска)
+  const e = evAll.find(x => x.eid === eid);
+  if (!e || !(e.sources || []).length) return;
+  highlight(new Set(e.sources.map(s => s.id)));
+  const b = $("#ereset"); if (b) b.style.display = "";
+}
+
+$("#bEvents").onclick = async () => {
+  panel("Активности", `<div class="d" id="evinfo" style="color:var(--dim);font-size:12px;margin-bottom:8px">загружаю…</div>
+    <div class="sfil evfil">
+      <select id="evtype"><option value="">все типы</option></select>
+      <select id="evchain"><option value="">все сети</option></select>
+      <input type="text" id="evq" placeholder="поиск по проекту">
+    </div>
+    <div id="evlist"></div>
+    <div style="margin-top:10px"><button id="ereset" style="display:none">сбросить подсветку</button></div>`);
+  let r;
+  try { r = await api("/api/events"); }
+  catch (err) { $("#evinfo").textContent = "Ошибка: " + err.message; return; }
+  evAll = r.events || [];
+  $("#evinfo").textContent = `${evAll.length} событий · данные чата по ${(r.last_msg || "").slice(0, 10)}` + (evAll.length ? "" : " — запусти extract_events.py");
+  $("#evtype").innerHTML = `<option value="">все типы</option>` + Object.entries(EVTYPE)
+    .map(([k, v]) => `<option value="${k}">${v[0]}</option>`).join("");
+  const chains = [...new Map(evAll.filter(e => e.chain).map(e => [e.chain.toLowerCase(), e.chain])).values()]
+    .sort((a, b) => a.localeCompare(b));
+  $("#evchain").innerHTML = `<option value="">все сети</option>` + chains
+    .map(c => `<option value="${escAttr(c)}">${esc(c)}</option>`).join("");
+  const render = () => {
+    const t = $("#evtype").value, ch = $("#evchain").value.toLowerCase(), qq = $("#evq").value.trim().toLowerCase();
+    const flt = evAll.filter(e => (!t || e.type === t)
+      && (!ch || (e.chain || "").toLowerCase() === ch)
+      && (!qq || `${e.project} ${e.title} ${e.details || ""}`.toLowerCase().includes(qq)));
+    let h = "";
+    for (const [st, label] of EVGROUPS) {
+      const items = flt.filter(e => e.status === st);
+      if (!items.length) continue;
+      const rows = items.map(evRow).join("");
+      h += (st === "past" || st === "undated")   // прошлое и без даты — свёрнуты
+        ? `<details class="evgrp"><summary>${label} · ${items.length}</summary>${rows}</details>`
+        : `<div class="evgrp"><h3>${label} · ${items.length}</h3>${rows}</div>`;
+    }
+    $("#evlist").innerHTML = h || "<i>ничего не найдено</i>";
+  };
+  $("#evtype").onchange = render;
+  $("#evchain").onchange = render;
+  $("#evq").oninput = render;
+  $("#ereset").onclick = () => { resetHl(); $("#ereset").style.display = "none"; };
+  render();
+};
+
+// --- кто в чём разбирается (experts.py → /api/experts) -------------------------
+let expData = null, expLoad = null, expTab = "topics", expFilter = "", expLive = false;
+const expTopicName = t => t.kind === "category" ? (CAT[t.topic] ? CAT[t.topic][0] : t.topic) : t.topic;
+const expExamples = (ex, n = 3) => (ex || []).slice(0, n)
+  .map(e => `<a onclick="openConv('${e.id}')" title="${e.n || 0} ключевых сообщений автора">${esc(e.id)}</a>`).join(" ");
+
+function loadExperts() {   // один запрос на сессию; люди отсортированы по n_key
+  if (!expLoad) expLoad = api("/api/experts").then(d => {
+    d.people = (d.people || []).sort((a, b) => (b.n_key - a.n_key) || (b.n_msgs - a.n_msgs) || a.author.localeCompare(b.author));
+    return d;
+  }, e => { expLoad = null; throw e; });   // неудача не кэшируется — следующий клик попробует снова
+  return expLoad;
+}
+
+function expTopicBlock(t) {   // тема: топ людей, полоска score, счётчики, примеры-ссылки
+  const max = Math.max(1, ...t.top.map(x => x.score));
+  return `<div class="extopic"><div class="exth">${esc(expTopicName(t))}<span class="d"> · ${t.n_people} чел.</span></div>` +
+    t.top.map(x => `<div class="exp">
+      <span class="a" data-author="${escAttr(x.author)}" style="cursor:pointer" onclick="openExpertCard(this.dataset.author)">${esc(x.author)}</span>
+      <span class="d"> · ${x.n_key} ключевых сообщений в ${x.n_convs} разговорах</span>
+      <div class="exbar"><i style="width:${Math.max(4, Math.round(x.score / max * 100))}%"></i></div>
+      <div class="exex">${expExamples(x.examples)}</div>
+    </div>`).join("") + `</div>`;
+}
+
+function expTopicsList() {   // группы «Кластеры / Категории / Схемы», фильтр по названию
+  const f = (expFilter || "").trim().toLowerCase();
+  let h = "";
+  for (const [k, label] of [["cluster", "Кластеры"], ["category", "Категории"], ["scheme", "Схемы"]]) {
+    const tops = expData.topics.filter(t => t.kind === k && expTopicName(t).toLowerCase().includes(f));
+    if (tops.length) h += `<div class="exgh">${label} · ${tops.length}</div>` + tops.map(expTopicBlock).join("");
+  }
+  return h || "<i>ничего не найдено</i>";
+}
+
+function expPersonCard(p, i) {   // человек: клик по имени — развернуть карточку
+  const tops = (p.top || []).map(t =>
+    `<div class="expt"><b>${esc(expTopicName(t))}</b> <span class="d">score ${t.score}</span> ${expExamples(t.examples)}</div>`).join("");
+  return `<details class="expcard" id="exp_${i}"><summary>
+    <span class="a" data-author="${escAttr(p.author)}">${esc(p.author)}</span>
+    <span class="d"> · ${p.n_key} ключевых · ${p.n_convs} разговоров · ${p.n_msgs} сообщ.</span></summary>
+    <div class="exbd">
+      <div class="d">${esc((p.first_ts || "").slice(0, 10))} — ${esc((p.last_ts || "").slice(0, 10))}</div>
+      ${p.profile ? `<div style="margin:4px 0">${esc(p.profile)}</div>` : "<i style='color:var(--dim)'>без профиля</i>"}
+      ${(p.skills || []).length ? `<div style="margin:4px 0">${p.skills.map(s => `<span class="pill">${esc(s)}</span>`).join("")}</div>` : ""}
+      ${tops || "<i style='color:var(--dim)'>тем со score≥4 нет</i>"}
+    </div></details>`;
+}
+
+function renderExpBody() {
+  const b = $("#expbody"); if (!b || !expData) return;
+  document.querySelectorAll("#expw [data-t]").forEach(x => x.classList.toggle("on", x.dataset.t === expTab));
+  if (expTab === "people") b.innerHTML = expData.people.map(expPersonCard).join("");
+  else {
+    b.innerHTML = `<input type="text" id="exq" placeholder="фильтр по названию темы" value="${escAttr(expFilter)}"><div id="exlist">${expTopicsList()}</div>`;
+    $("#exq").oninput = e => { expFilter = e.target.value; const l = $("#exlist"); if (l) { l.innerHTML = expTopicsList(); applyAnon(l); } };
+  }
+  applyAnon(b);
+  expLive = true;
+}
+
+function setExpTab(t) { expTab = t; renderExpBody(); }
+
+async function expertsPanel(tab) {
+  panel("Кто в чём", `<div id="expw"><div class="mrow">
+      <button class="mbtn" data-t="topics" onclick="setExpTab('topics')">По темам</button>
+      <button class="mbtn" data-t="people" onclick="setExpTab('people')">По людям</button>
+      <span class="cnt" id="exstat">загружаю…</span></div>
+    <div id="expbody"></div></div>`);
+  try { expData = await loadExperts(); }
+  catch (err) { $("#exstat").textContent = ""; $("#expbody").textContent = "Ошибка: " + err.message; return; }
+  $("#exstat").textContent = `${expData.people.length} людей · ${expData.topics.length} тем`;
+  expTab = tab || "topics";
+  renderExpBody();
+}
+
+async function openExpertCard(name) {   // карточка человека: клик по имени в теме или автору сообщения
+  if (!expData || !expLive) await expertsPanel("people");
+  if (!expData) return;
+  if (expTab !== "people") setExpTab("people");
+  const i = expData.people.findIndex(p => p.author === name);
+  const d = i >= 0 ? document.getElementById("exp_" + i) : null;
+  if (d) { d.open = true; d.scrollIntoView({ block: "center" }); }
+  else {   // бот или автор без карточки
+    const b = $("#expbody");
+    if (b) b.insertAdjacentHTML("afterbegin",
+      `<div class="warn" id="expmiss">нет карточки для «${esc(name || "")}» — бот или автор без ключевых сообщений</div>`);
+  }
+}
+
+$("#bExperts").onclick = () => expertsPanel();
+
+function highlight(ids) {   // dim all nodes except search hits, fit view to them
+  hl = ids;
+  const b = $("#sreset"); if (b) b.style.display = ids ? "" : "none";
+  if (!G) return;
+  if (ids && ids.size) G.zoomToFit(600, 80, n => ids.has(n.id));
+}
+function resetHl() {
+  hl = null; const b = $("#sreset"); if (b) b.style.display = "none";
+}
+
+// --- «темы во времени»: stacked area по неделям (GET /api/trends) ----------------
+const TCOLORS = ["#3987e5", "#d95926", "#199e70", "#c98500", "#d55181", "#008300", "#9085e9", "#e66767"];
+const TOTHER = "#5a5c66";   // «Прочее» — всегда самая нижняя серия
+const TPANEL = "#13131d";   // цвет поверхности: 1px зазор между слоями
+const MON = ["января","февраля","марта","апреля","мая","июня","июля","августа","сентября","октября","ноября","декабря"];
+const MONS = ["янв","фев","мар","апр","май","июн","июл","авг","сен","окт","ноя","дек"];
+let trendsData = {}, trendsBy = "cluster", trendsPer = "all", trendsHidden = new Set(), trendsTable = false, tLast = null;
+
+const tName = s => s.other ? "Прочее" : (trendsBy === "category" ? (CAT[s.key]?.[0] || s.key) : s.name);   // категории — коды → названия
+const tWeekLabel = w => +w.slice(8, 10) + " " + MON[+w.slice(5, 7) - 1];
+const tAddDays = (iso, n) => { const d = new Date(iso + "T12:00:00Z"); d.setUTCDate(d.getUTCDate() + n); return d.toISOString().slice(0, 10); };
+
+async function ensureTrendsData() {
+  if (!trendsData[trendsBy]) trendsData[trendsBy] = await api("/api/trends?by=" + trendsBy);
+}
+
+function trendsSeries() {   // топ-8 по total за ВЕСЬ период со своими цветами + «Прочее» из остальных
+  const d = trendsData[trendsBy];
+  const out = d.series.slice(0, 8).map((s, i) => ({ ...s, color: TCOLORS[i] }));
+  const rest = d.series.slice(8);
+  if (rest.length) {
+    const v = new Array(d.weeks.length).fill(0);
+    for (const s of rest) s.values.forEach((x, i) => v[i] += x);
+    out.push({ key: "__other", name: "Прочее", values: v, total: rest.reduce((a, s) => a + s.total, 0), color: TOTHER, other: true });
+  }
+  return out;
+}
+
+function trendsWeeks() {   // видимый период: всё | последние 3 мес | последний месяц
+  const ws = trendsData[trendsBy].weeks;
+  const n = trendsPer === "m1" ? 4 : trendsPer === "m3" ? 13 : ws.length;
+  const i0 = Math.max(0, ws.length - n);
+  return { i0, weeks: ws.slice(i0) };
+}
+
+async function openTrends() {
+  $("#twrap").classList.add("open");
+  if (trendsData[trendsBy]) { renderTrends(); return; }
+  $("#tstat").textContent = "загружаю…";
+  try { await ensureTrendsData(); }
+  catch (err) { $("#tstat").textContent = "Ошибка: " + err.message; return; }
+  renderTrends();
+}
+function closeTrends() { $("#twrap").classList.remove("open"); const t = $("#ttip"); if (t) t.style.display = "none"; }
+$("#bTrends").onclick = () => $("#twrap").classList.contains("open") ? closeTrends() : openTrends();
+$("#tclose").onclick = closeTrends;
+$("#twrap").onclick = e => { if (e.target === $("#twrap")) closeTrends(); };
+document.addEventListener("keydown", e => { if (e.key === "Escape" && $("#twrap").classList.contains("open")) closeTrends(); });
+$("#tby").addEventListener("click", async e => {
+  const b = e.target.closest("button"); if (!b || b.dataset.v === trendsBy) return;
+  trendsBy = b.dataset.v; trendsHidden = new Set();   // цвета/набор серий другие — скрытия сбрасываем
+  await openTrends();
+});
+$("#tper").addEventListener("click", e => {
+  const b = e.target.closest("button"); if (!b || b.dataset.v === trendsPer) return;
+  trendsPer = b.dataset.v;   // цвета тем не перекрашиваются: ранги за весь период
+  renderTrends();
+});
+$("#ttoggle").onclick = () => { trendsTable = !trendsTable; renderTrends(); };
+let tRaf = 0;
+new ResizeObserver(() => {   // окно сменило размер → перерисовать график
+  if (!$("#twrap").classList.contains("open") || trendsTable || !tLast) return;
+  cancelAnimationFrame(tRaf);
+  tRaf = requestAnimationFrame(() => drawTrendsChart(tLast.sers, tLast.i0, tLast.weeks));
+}).observe($("#tchart"));
+
+function renderTrends() {
+  const d = trendsData[trendsBy]; if (!d) return;
+  document.querySelectorAll("#tby .mbtn").forEach(b => b.classList.toggle("on", b.dataset.v === trendsBy));
+  document.querySelectorAll("#tper .mbtn").forEach(b => b.classList.toggle("on", b.dataset.v === trendsPer));
+  $("#ttoggle").textContent = trendsTable ? "график" : "таблица";
+  $("#tchart").hidden = trendsTable;
+  $("#ttable").hidden = !trendsTable;
+  $("#tstat").textContent = `${d.weeks.length} нед · ${d.series.reduce((a, s) => a + s.total, 0).toLocaleString("ru-RU")} сообщений`;
+  const sers = trendsSeries();
+  $("#tlegend").innerHTML = sers.map(s =>
+    `<span class="li${trendsHidden.has(String(s.key)) ? " off" : ""}" data-k="${escAttr(String(s.key))}" title="скрыть/показать серию"><i style="background:${s.color}"></i>${esc(tName(s))} <span class="t">${s.total.toLocaleString("ru-RU")}</span></span>`).join("");
+  document.querySelectorAll("#tlegend .li").forEach(el => el.onclick = () => {
+    const k = el.dataset.k;
+    trendsHidden.has(k) ? trendsHidden.delete(k) : trendsHidden.add(k);
+    renderTrends();   // стек пересчитывается
+  });
+  const { i0, weeks } = trendsWeeks();
+  tLast = { sers, i0, weeks };
+  if (trendsTable) renderTrendsTable(sers, i0, weeks);
+  else drawTrendsChart(sers, i0, weeks);
+}
+
+function drawTrendsChart(sers, i0, weeks) {
+  const box = $("#tchart"), W = box.clientWidth, H = box.clientHeight;
+  d3.select(box).select("svg").remove();   // html-тултип внутри #tchart остаётся
+  const tip = $("#ttip"); tip.style.display = "none";
+  if (!W || !H) return;
+  const vis = sers.filter(s => !trendsHidden.has(String(s.key)));
+  if (!vis.length) {
+    d3.select(box).append("svg").attr("width", W).attr("height", H)
+      .append("text").attr("x", W / 2).attr("y", H / 2).attr("text-anchor", "middle")
+      .attr("fill", "var(--dim)").text("все серии скрыты — включи что-нибудь в легенде");
+    return;
+  }
+  const m = { top: 14, right: 18, bottom: 28, left: 50 };
+  const svg = d3.select(box).append("svg").attr("width", W).attr("height", H);
+  const n = weeks.length, step = (W - m.left - m.right) / Math.max(1, n);
+  const xc = i => m.left + (i + 0.5) * step;   // центр колонки недели
+  // стек снизу вверх: «Прочее» внизу, дальше топ-8 по убыванию total
+  const order = [...vis.filter(s => s.other), ...vis.filter(s => !s.other)];
+  let acc = new Array(n).fill(0);
+  const layers = order.map(s => {
+    const y0 = acc;
+    acc = acc.map((b, i) => b + s.values[i0 + i]);
+    return { s, y0, y1: acc };
+  });
+  const ymax = Math.max(1, ...acc);
+  const y = d3.scaleLinear().domain([0, ymax]).nice().range([H - m.bottom, m.top]);
+
+  const gy = svg.append("g");   // сетка по Y: тонкая, приглушённая; подписи — вторичным цветом
+  for (const t of y.ticks(5)) {
+    gy.append("line").attr("x1", m.left).attr("x2", W - m.right).attr("y1", y(t)).attr("y2", y(t))
+      .attr("stroke", "#2a2c35").attr("stroke-width", 1);
+    gy.append("text").attr("x", m.left - 8).attr("y", y(t) + 4).attr("text-anchor", "end")
+      .attr("fill", "var(--dim)").attr("font-size", 11).text(t.toLocaleString("ru-RU"));
+  }
+  const gx = svg.append("g");   // ось X: месяцы по-русски
+  gx.append("line").attr("x1", m.left).attr("x2", W - m.right).attr("y1", H - m.bottom).attr("y2", H - m.bottom)
+    .attr("stroke", "#2a2c35").attr("stroke-width", 1);
+  let prevM = null;
+  weeks.forEach((w, i) => {
+    const mo = w.slice(5, 7);
+    if (mo !== prevM) {
+      prevM = mo;
+      gx.append("text").attr("x", Math.min(Math.max(xc(i), m.left + 16), W - m.right - 16))
+        .attr("y", H - m.bottom + 18).attr("text-anchor", "middle")
+        .attr("fill", "var(--dim)").attr("font-size", 11).text(MONS[+mo - 1]);
+    }
+  });
+
+  const area = d3.area().x(p => xc(p.i)).y0(p => y(p.v0)).y1(p => y(p.v1)).curve(d3.curveMonotoneX);
+  const gA = svg.append("g");
+  for (const L of layers) {
+    gA.append("path").attr("d", area(weeks.map((w, i) => ({ i, v0: L.y0[i], v1: L.y1[i] }))))
+      .attr("fill", L.s.color).attr("stroke", TPANEL).attr("stroke-width", 1);   // 1px зазор цветом поверхности
+  }
+
+  // прямые подписи на 3–4 самых толстых слоях в точке их максимальной толщины
+  const cand = layers.map(L => {
+    let mi = 0, mv = -1;
+    for (let i = 0; i < n; i++) { const th = y(L.y0[i]) - y(L.y1[i]); if (th > mv) { mv = th; mi = i; } }
+    return { L, mi, mv };
+  }).filter(c => c.mv >= 14).sort((a, b) => b.mv - a.mv).slice(0, 4);
+  for (const c of cand) {
+    const L = c.L, i = c.mi;
+    svg.append("text").attr("x", Math.min(Math.max(xc(i), m.left + 70), W - m.right - 70))
+      .attr("y", (y(L.y0[i]) + y(L.y1[i])) / 2 + 4).attr("text-anchor", "middle")
+      .attr("fill", "var(--fg)").attr("stroke", "#0b0b12").attr("stroke-width", 3).attr("paint-order", "stroke")
+      .attr("font-size", 11).attr("font-weight", 600).text(tName(L.s));
+  }
+
+  // hover: вертикальный курсор по неделе + тултип; цель — вся колонка недели
+  const line = svg.append("line").attr("y1", m.top).attr("y2", H - m.bottom)
+    .attr("stroke", "#8b8ba3").attr("stroke-width", 1).attr("opacity", 0).style("pointer-events", "none");
+  const ov = svg.append("rect").attr("x", m.left).attr("y", m.top)
+    .attr("width", W - m.left - m.right).attr("height", H - m.top - m.bottom)
+    .attr("fill", "transparent").style("cursor", "crosshair");
+  const weekAt = px => Math.max(0, Math.min(n - 1, Math.floor((px - m.left) / step)));
+  const showTip = i => {
+    line.attr("x1", xc(i)).attr("x2", xc(i)).attr("opacity", .9);
+    const rows = vis.map(s => ({ s, v: s.values[i0 + i] })).filter(r => r.v > 0).sort((a, b) => b.v - a.v);
+    const sum = rows.reduce((a, r) => a + r.v, 0);
+    tip.innerHTML = `<div class="tt">неделя с ${tWeekLabel(weeks[i])}</div>` +
+      (rows.length ? rows.map(r => `<div class="tr${r.s.other ? " na" : ""}" data-k="${escAttr(String(r.s.key))}"${r.s.other ? ' title="«Прочее» — не одна тема"' : ""}><i style="background:${r.s.color}"></i><span>${esc(tName(r.s))}</span><b>${r.v.toLocaleString("ru-RU")}</b></div>`).join("") : "<i>нет сообщений</i>") +
+      `<div class="ts"><span>сумма</span><b>${sum.toLocaleString("ru-RU")}</b></div>`;
+    tip.style.display = "block";
+    tip.querySelectorAll(".tr").forEach(el => el.onclick = ev => { ev.stopPropagation(); trendsSelect(el.dataset.k, i0 + i); });
+  };
+  ov.on("pointermove", e => { const [px] = d3.pointer(e, svg.node()); showTip(weekAt(px)); });
+  ov.on("pointerleave", () => { line.attr("opacity", 0); tip.style.display = "none"; });
+  ov.on("click", e => {   // слой под курсором → тема на карте
+    const [px, py] = d3.pointer(e, svg.node());
+    const i = weekAt(px), v = y.invert(py);
+    for (let k = layers.length - 1; k >= 0; k--) {
+      if (v >= layers[k].y0[i] && v <= layers[k].y1[i]) { trendsSelect(String(layers[k].s.key), i0 + i); return; }
+    }
+  });
+}
+
+function renderTrendsTable(sers, i0, weeks) {   // те же данные таблицей: недели × серии
+  const box = $("#ttable");
+  const vis = sers.filter(s => !trendsHidden.has(String(s.key)));
+  if (!vis.length) { box.innerHTML = "<i>все серии скрыты</i>"; return; }
+  const head = vis.map(s => `<th><i style="background:${s.color}"></i>${esc(tName(s))}</th>`).join("");
+  const rows = weeks.map((w, i) => {
+    const cells = vis.map(s => { const v = s.values[i0 + i]; return `<td${v ? "" : ' class="z"'}>${v || "·"}</td>`; }).join("");
+    const tot = vis.reduce((a, s) => a + s.values[i0 + i], 0);
+    return `<tr><td>${w}</td>${cells}<td>${tot || ""}</td></tr>`;
+  }).join("");
+  const tots = vis.map(s => weeks.reduce((a, w, i) => a + s.values[i0 + i], 0)).map(t => `<td>${t || ""}</td>`).join("");
+  const gt = weeks.reduce((a, w, i) => a + vis.reduce((x, s) => x + s.values[i0 + i], 0), 0);
+  box.innerHTML = `<table><thead><tr><th>неделя</th>${head}<th>сумма</th></tr></thead><tbody>
+    ${rows}<tr class="tot"><td>всего</td>${tots}<td>${gt.toLocaleString("ru-RU")}</td></tr></tbody></table>`;
+}
+
+function trendsSelect(key, i) {   // тема+неделя → подсветка на карте, слайдер, топ-15 разговоров
+  const d = trendsData[trendsBy]; if (!d || key === "__other") return;   // «Прочее» — не одна тема
+  const wk = d.weeks[i], weISO = tAddDays(wk, 6);   // конец недели — воскресенье
+  const s = d.series.find(x => String(x.key) === key);
+  const name = s ? tName(s) : key;
+  closeTrends();
+  // слайдер таймлайна — на конец выбранной недели: видны разговоры до этой даты
+  const h = data.hist;
+  let di = 0;
+  for (let k = 0; k < h.length; k++) if (h[k][0] <= weISO) di = k;
+  $("#slider").value = h.length > 1 ? Math.round(di / (h.length - 1) * 1000) : 1000;
+  $("#slider").dispatchEvent(new Event("input"));
+  // подсветка узлов темы (как подсветка результатов поиска)
+  const ids = new Set(data.nodes.filter(nd =>
+    nd.v !== "drop" && nd.t.slice(0, 10) <= weISO && (trendsBy === "cluster" ? nd.k === +key : nd.c === key)).map(nd => nd.id));
+  highlight(ids);
+  // топ-15 разговоров темы, начатых в эту неделю (по числу сообщений)
+  const inWeek = data.nodes.filter(nd =>
+    nd.v !== "drop" && (trendsBy === "cluster" ? nd.k === +key : nd.c === key)
+    && nd.t.slice(0, 10) >= wk && nd.t.slice(0, 10) <= weISO)
+    .sort((a, b) => b.n - a.n).slice(0, 15);
+  panel(`Темы · ${name}`, `
+    <div class="d" style="color:var(--dim);font-size:12px;margin-bottom:8px">неделя с ${tWeekLabel(wk)} · ${(s ? s.values[i] || 0 : 0).toLocaleString("ru-RU")} не-бот сообщений темы · разговоры, начатые в эту неделю</div>
+    ${inWeek.length ? inWeek.map(nd => `<div class="hit" onclick="openConv('${nd.id}')"><div class="d">${nd.t.slice(0, 10)} · ${nd.id} · ${nd.n} сообщ.</div>${esc(nd.s)}</div>`).join("")
+      : "<i>разговоров этой темы в эту неделю не начиналось</i>"}
+    <div style="margin-top:10px"><button id="treset">сбросить</button></div>`);
+  $("#treset").onclick = () => {
+    resetHl();
+    $("#slider").value = 1000;
+    $("#slider").dispatchEvent(new Event("input"));
+  };
+}
+
+const markSnip = s => esc(s).replace(/«([^»]*)»/g, "<mark>$1</mark>");   // маркеры сниппета « » → <mark>
+
+$("#bSearch").onclick = () => {
+  panel("Поиск", `<input type="text" id="sq" placeholder="например: как не словить бан Claude из РФ">
+    <div class="sfil">
+      <select id="fbranch"><option value="">все ветки</option>${data.topics.map(t => `<option value="${t.short}">${esc(t.title)}</option>`).join("")}</select>
+      <select id="fcat"><option value="">все категории</option>${Object.entries(CAT).filter(([k]) => k !== "null").map(([k, v]) => `<option value="${k}">${v[0]}</option>`).join("")}</select>
+      <label><input type="checkbox" id="fsch"> только схемы</label>
+      <label><input type="checkbox" id="fdrop"> вкл. мусор</label>
+    </div>
+    <div id="swarn" class="warn" style="display:none"></div>
+    <div id="sr" style="margin-top:10px"></div>
+    <div style="margin-top:10px"><button id="sreset" style="display:none">сбросить подсветку</button></div>`);
+  $("#sq").focus();
+  $("#sreset").onclick = resetHl;
+  const runSearch = async () => {
+    const q = $("#sq").value.trim();
+    lastQ = q || null;   // openConv из результатов передаст запрос серверу (hit-разметка)
+    if (!q) { $("#sr").innerHTML = ""; $("#swarn").style.display = "none"; resetHl(); return; }
+    $("#sr").innerHTML = "ищу…";
+    const p = new URLSearchParams({ q });
+    if ($("#fbranch").value) p.set("branch", $("#fbranch").value);
+    if ($("#fcat").value) p.set("category", $("#fcat").value);
+    if ($("#fsch").checked) p.set("schemes", "1");
+    if ($("#fdrop").checked) p.set("drop", "1");
+    try {
+      const r = await api("/api/search?" + p.toString());
+      const hits = r.results || [];
+      $("#swarn").style.display = r.semantic ? "none" : "block";
+      if (!r.semantic) $("#swarn").textContent = "смысловой поиск недоступен (не запущен OpenCode API Manager), ищу по словам";
+      $("#sr").innerHTML = hits.length ? hits.map(h => `<div class="hit" onclick="openConv('${h.id}',null,lastQ)">
+        <div class="d">${h.date} · ${h.id} · ${CAT[h.category]?.[0] || ""} · ${h.score}${h.has_scheme ? " · схема" : ""}</div>${esc(h.summary)}
+        ${h.hits.map(x => `<div class="mh" onclick="event.stopPropagation();openConv('${h.id}',${x.msg},lastQ)"><span class="d">#${x.msg}</span> <span class="a" data-author="${escAttr(x.author)}">${esc(x.author)}</span>: ${markSnip(x.snippet)}</div>`).join("")}
+        </div>`).join("") : "<i>ничего не найдено</i>";
+      applyAnon($("#sr"));
+      highlight(new Set(hits.map(h => h.id)));
+    }
+    catch (err) { $("#sr").textContent = "Ошибка: " + err.message; }
+  };
+  let deb = null;   // поиск по вводу с debounce 500 мс + по Enter
+  $("#sq").oninput = () => { clearTimeout(deb); deb = setTimeout(runSearch, 500); };
+  $("#sq").onkeydown = e => { if (e.key === "Enter") { clearTimeout(deb); runSearch(); } };
+  for (const f of ["fbranch", "fcat", "fsch", "fdrop"]) $("#" + f).onchange = runSearch;   // фильтр сменился → ищем заново
+};
+
+// --- чат с базой (/api/chat, SSE) ----------------------------------------------
+function chatLinkify(html, valid) {   // как linkify, но [[…]] проверяется по источникам ответа: неизвестные — текст
+  return html.replace(/\[\[([^\]|]+)(?:\|([^\]]+))?\]\]/g, (m, id, label) => {
+    if (!valid.has(id)) return m;
+    return /^(nft|ai|life|crypto|perps|predict|soft|shitki|important)-c[\d-]+$/.test(id)
+      ? `<a onclick="openConv('${id}')">[${label || id}]</a>`
+      : `<a onclick="openArticleByName('${id.replace(/'/g, "\\'")}')">${label || id}</a>`;
+  });
+}
+
+function ensureChat() {
+  if (!chats.list.length || !chats.list[0] || !Array.isArray(chats.list[0].msgs))
+    chats.list = [{ id: Date.now(), title: "", days: 0, pin: null, msgs: [] }];
+  chat = chats.list[0];
+  if (chat.pin && !chat.pin.type) chat.pin = null;   // битые данные старых версий
+  for (const m of chat.msgs) if (m.streaming) {   // стрим оборвался перезагрузкой страницы
+    m.streaming = false;
+    if (!m.content && !m.error) m.error = "прервано (перезагрузка страницы)";
+  }
+  return chat;
+}
+
+function chatPinLabel(p) { return !p ? "" : p.type === "conv" ? `разговор ${p.id}` : `статья «${p.title}»`; }
+
+function chatValid(m) {   // допустимые [[…]]: источники/статьи этого ответа и всех предыдущих ходов диалога
+  const idx = chat && chat.msgs ? chat.msgs.indexOf(m) : -1;
+  const out = new Set();
+  for (const x of (chat && chat.msgs || []).slice(0, Math.max(idx + 1, 1))) {
+    (x.sources || []).forEach(s => out.add(s.id));
+    (x.articles || []).forEach(a => out.add(a.title));
+  }
+  return out;
+}
+
+function chatMsgHtml(m) {
+  if (m.role === "user") return `<div class="cmsg u"><div class="bub">${esc(m.content)}</div></div>`;
+  const src = m.sources || [], arts = m.articles || [];
+  const valid = chatValid(m);
+  const bub = m.content ? chatLinkify(marked.parse(m.content), valid)
+    : (m.error ? "" : `<i class="cwait">${esc(m.status || "думаю…")}</i>`);
+  return `<div class="cmsg a"><div class="bub md${m.streaming ? " cur" : ""}"${m.streaming ? ` id="chatCurBub" data-tok="${m.tok}"` : ""}>${bub}</div>
+    ${m.error ? `<div class="warn">⚠ ${esc(m.error)}</div>` : ""}
+    ${(src.length || arts.length) ? `<details class="csrc"><summary>источники: ${src.length + arts.length}${m.query ? ` · поиск: ${esc(m.query)}` : ""}</summary>
+      ${src.map(s => `<div class="hit" onclick="openConv('${s.id}')"><div class="d">${esc(s.date)} · ${esc(s.id)} · ${esc(s.topic)}</div>${esc(s.summary)}</div>`).join("")}
+      ${arts.map(a => `<div class="hit" onclick="openArticle('${a.path.replace(/'/g, "\\'")}')"><div class="d">статья</div>${esc(a.title)}</div>`).join("")}
+    </details>` : ""}</div>`;
+}
+
+function renderChatFeed(bottom) {
+  const f = $("#chatFeed"); if (!f) return;
+  const near = f.scrollHeight - f.scrollTop - f.clientHeight < 60;
+  f.innerHTML = chat.msgs.length ? chat.msgs.map(chatMsgHtml).join("")
+    : `<div class="cempty">Спроси что-нибудь по базе — отвечу по разговорам чата и статьям базы знаний; ссылки [[id]] под ответом ведут к источникам.</div>`;
+  if (bottom || near) f.scrollTop = f.scrollHeight;
+}
+
+function chatPanel(push = true) {
+  ensureChat();
+  const past = chats.list.slice(1).filter(c => (c.msgs || []).length);
+  chatPast = past;
+  panel("Чат", `<div id="chatTop">
+      <button id="cNew">✚ новый чат</button><span class="sp"></span>
+      ${[["всё", 0], ["7 дн", 7], ["30 дн", 30], ["90 дн", 90]].map(([l, d]) => `<button class="cper${(chat.days || 0) === d ? " on" : ""}" data-d="${d}">${l}</button>`).join("")}
+    </div>
+    ${chat.pin ? `<div class="cpin">контекст: ${esc(chatPinLabel(chat.pin))}<button id="cPinX" title="убрать контекст">✕</button></div>` : ""}
+    ${past.length ? `<details class="cpast"${chat.msgs.length ? "" : " open"}><summary>прошлые чаты (${past.length})</summary>
+      ${past.map((c, i) => `<div class="it" onclick="openPastChat(${i})">${esc(c.title || "без названия")} <span class="d" style="color:var(--dim);font-size:11px">${(c.msgs || []).filter(m => m.role === "user").length} вопр.</span></div>`).join("")}
+    </details>` : ""}
+    <div id="chatFeed"></div>
+    <div id="chatBar"><textarea id="cin" rows="2" placeholder="Спроси по базе… (Enter — отправить, Shift+Enter — перенос)"></textarea><button id="cSend">➤</button></div>`, push);
+  $("#pbody").className = "chatbody";
+  chatLive = true;
+  renderChatFeed(true);
+  $("#cin").value = chatDraft;
+  $("#cin").oninput = e => chatDraft = e.target.value;
+  $("#cin").onkeydown = e => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); sendChat(); } };
+  $("#cSend").onclick = () => sendChat();
+  $("#cNew").onclick = () => newChat();
+  if (chat.pin) $("#cPinX").onclick = () => { chat.pin = null; saveChats(); chatPanel(false); };
+  document.querySelectorAll(".cper").forEach(b => b.onclick = () => {
+    chat.days = +b.dataset.d; saveChats();
+    document.querySelectorAll(".cper").forEach(x => x.classList.toggle("on", +x.dataset.d === chat.days));
+  });
+  setSendState();
+}
+$("#bChat").onclick = () => chatPanel();
+
+function newChat(pin) {
+  if (chatAbort) { chatAbort.abort(); chatAbort = null; }   // текущий стрим тихо прекращается
+  const fresh = { id: Date.now(), title: "", days: chat ? chat.days : 0, pin: pin || null, msgs: [] };
+  if (chat && chat.msgs.length) chats.list.unshift(fresh);   // текущий с сообщениями остаётся в истории
+  else if (chat) chats.list[0] = fresh;                      // пустой текущий — просто заменяем
+  else chats.list.unshift(fresh);
+  chats.list = chats.list.slice(0, 20);
+  chat = fresh; chatDraft = "";
+  saveChats();
+  chatPanel(false);
+}
+
+function openPastChat(i) {
+  const c = chatPast[i]; if (!c) return;
+  if (chatAbort) { chatAbort.abort(); chatAbort = null; }
+  chats.list = chats.list.filter(x => x !== c);
+  chats.list.unshift(c);
+  chats.list = chats.list.slice(0, 20);
+  chat = c; chatDraft = "";
+  saveChats();
+  chatPanel(false);
+}
+
+function setSendState() {
+  const b = $("#cSend"); if (!b) return;
+  b.disabled = chatStream;
+  b.textContent = chatStream ? "…" : "➤";
+}
+
+function updateBubble(am) {   // стримящийся ответ: перерисовываем его пузырь, автоскролл если пользователь внизу
+  const el = document.getElementById("chatCurBub");
+  if (!el || el.dataset.tok != am.tok) return;
+  const f = el.closest("#chatFeed");
+  const near = f.scrollHeight - f.scrollTop - f.clientHeight < 80;
+  const valid = chatValid(am);
+  el.innerHTML = am.content ? chatLinkify(marked.parse(am.content), valid)
+    : `<i class="cwait">${esc(am.status || "думаю…")}</i>`;
+  if (near) f.scrollTop = f.scrollHeight;
+}
+
+async function readSSE(r, h) {   // разбор text/event-stream через ReadableStream
+  const reader = r.body.getReader(), dec = new TextDecoder();
+  let buf = "";
+  for (;;) {
+    const { done, value } = await reader.read();
+    if (done) break;
+    buf += dec.decode(value, { stream: true });
+    let p;
+    while ((p = buf.indexOf("\n\n")) >= 0) {
+      const raw = buf.slice(0, p); buf = buf.slice(p + 2);
+      let ev = "", data = "";
+      for (const line of raw.split("\n")) {
+        if (line.startsWith("event:")) ev = line.slice(6).trim();
+        else if (line.startsWith("data:")) data += (data ? "\n" : "") + line.slice(5).trim();
+      }
+      if (!data) continue;
+      const o = JSON.parse(data);
+      if (ev === "delta") h.delta(o);
+      else if (ev === "meta") h.meta(o);
+      else if (ev === "status") { if (h.status) h.status(o); }
+      else if (ev === "done") { if (h.done) h.done(o); return; }
+      else if (ev === "error") throw new Error(o.error || "ошибка LLM");
+    }
+  }
+}
+
+async function sendChat(prefill) {
+  const t = (prefill != null ? prefill : chatDraft).trim();
+  if (!t || chatStream) return;
+  ensureChat();
+  chatDraft = "";
+  chat.msgs.push({ role: "user", content: t });
+  const am = { role: "assistant", content: "", query: "", sources: [], articles: [], status: "", streaming: true, tok: ++chatTok };
+  chat.msgs.push(am);
+  if (!chat.title) chat.title = t.slice(0, 60);
+  saveChats();
+  renderChatFeed(true);
+  const cin = $("#cin"); if (cin) cin.value = "";
+  chatStream = true; setSendState();
+  let from = null;   // период — как в дайджесте: от последней даты в базе
+  if (chat.days) { const last = data.hist[data.hist.length - 1][0]; const d = new Date(last); d.setDate(d.getDate() - chat.days); from = d.toISOString().slice(0, 10); }
+  const hist = chat.msgs.slice(0, -1).filter(m => (m.content || "").trim()).map(m => ({ role: m.role, content: m.content }));
+  const body = { messages: hist, from, to: null,
+    pin: chat.pin ? (chat.pin.type === "conv" ? chat.pin.id : chat.pin.path) : null, anon };
+  chatAbort = new AbortController();
+  try {
+    const r = await fetch("/api/chat", { method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(body), signal: chatAbort.signal });
+    if (!r.ok) throw new Error("HTTP " + r.status);
+    await readSSE(r, {
+      meta: o => { am.query = o.query || ""; am.sources = o.sources || []; am.articles = o.articles || []; if (chatLive) renderChatFeed(true); },
+      status: o => { am.status = o.text || ""; if (chatLive) updateBubble(am); },
+      delta: o => { am.content += o.text || ""; updateBubble(am); },
+    });
+  } catch (err) {
+    if (!(err && err.name === "AbortError")) am.error = (err && err.message) || String(err);
+  } finally {
+    am.streaming = false;
+    am.status = "";
+    if (!am.content && !am.error) am.error = "пустой ответ";
+    chatStream = false; chatAbort = null;
+    saveChats();
+    if (chatLive) { renderChatFeed(true); setSendState(); }
+  }
+}
+
+function askAboutConv(id) { newChat({ type: "conv", id, label: id }); }
+function askAboutArticle(path, title) { newChat({ type: "art", path, label: title || path, title: title || path }); }
+
+$("#bDrop").onclick = () => { if (mode === "semantic") return; showDrop = !showDrop; $("#bDrop .lbl").textContent = "мусор: " + (showDrop ? "показан" : "скрыт"); $("#bDrop").classList.toggle("on", showDrop); refresh(); };
+
+function applyMode() {   // fx/fy from remembered layouts (bx/by = branches, sx/sy = semantic), then re-render
+  $("#bMode .lbl").textContent = "вид: " + (mode === "semantic" ? "смысл" : "ветки");
+  $("#bMode").classList.toggle("on", mode === "semantic");
+  $("#bDrop").disabled = mode === "semantic";   // drop nodes have no semantic coords → hidden anyway
+  for (const n of data.nodes) {
+    const x = mode === "semantic" && n.sx != null ? n.sx : n.bx, y = mode === "semantic" && n.sy != null ? n.sy : n.by;
+    n.x = n.fx = x; n.y = n.fy = y;
+  }
+  if (G) { G.nodeVisibility(visible); G.zoomToFit(600, 90, visible); }   // fit только видимые узлы, не скрытые мусорные
+}
+$("#bMode").onclick = () => { if (!G) return; mode = mode === "semantic" ? "branches" : "semantic"; applyMode(); };
+
+function visible(n) {
+  if (mode === "semantic") return n.ux != null && shown.has(n.c) && (!cutoff || n.t <= cutoff);
+  return (n.v !== "drop" ? shown.has(n.c) : showDrop) && (!cutoff || n.t <= cutoff);
+}
+function refresh() { if (G) G.nodeVisibility(visible); }
+
+function legend() {
+  const counts = {}; data.nodes.forEach(n => { const k = n.v === "drop" ? "null" : n.c; counts[k] = (counts[k] || 0) + 1; });
+  $("#legend").innerHTML = Object.entries(CAT).filter(([k]) => k !== "null").map(([k, [l, c]]) =>
+    `<div data-k="${k}" class="${shown.has(k) ? "" : "off"}"><i style="background:${c}"></i>${l} <span>${counts[k] || 0}</span></div>`).join("");
+  document.querySelectorAll("#legend div").forEach(d => d.onclick = () => { const k = d.dataset.k; shown.has(k) ? shown.delete(k) : shown.add(k); d.classList.toggle("off"); refresh(); });
+}
+
+function timeline() {
+  const c = $("#hist"), ctx = c.getContext("2d");
+  const h = data.hist, max = Math.max(...h.map(x => x[1]));
+  const draw = upto => { const w = c.width / h.length; ctx.clearRect(0, 0, c.width, c.height); h.forEach(([d, n], i) => { ctx.fillStyle = i <= upto ? "#e5397b" : "#3a2a35";
+    const bh = Math.max(1, n / max * c.height); ctx.fillRect(i * w, c.height - bh, Math.max(1, w - 1), bh); }); };
+  let upto = h.length;   // последний отрисованный индекс — нужен при перерисовке после смены ширины
+  const apply = () => { const v = +$("#slider").value, i = Math.round(v / 1000 * (h.length - 1)); cutoff = v >= 1000 ? null : h[i][0] + "T23:59";
+    $("#tlabel").textContent = v >= 1000 ? "сейчас" : h[i][0]; upto = i; draw(i); refresh(); };
+  const size = () => { c.width = c.clientWidth * devicePixelRatio; c.height = c.clientHeight * devicePixelRatio; draw(upto); };
+  $("#slider").oninput = apply; size();
+  new ResizeObserver(size).observe(c);   // #timeline сжимается при открытой панели → битмап под новую ширину
+  let timer = null; $("#play").onclick = () => { if (timer) { clearInterval(timer); timer = null; $("#play").textContent = "▶"; return; }
+    if (+$("#slider").value >= 1000) $("#slider").value = 0; $("#play").textContent = "❚❚";
+    timer = setInterval(() => { const s = $("#slider"); s.value = Math.min(1000, +s.value + 4); apply(); if (+s.value >= 1000) { clearInterval(timer); timer = null; $("#play").textContent = "▶"; } }, 60); };
+}
+
+(async () => {
+  data = await api("/api/graph");
+  authorLUT = new Map((data.authors || []).map(a => [a.toLowerCase(), a]));   // для псевдонимов «переслано от …»
+  const title = Object.fromEntries(data.topics.map(t => [t.short, t.title]));
+  const clName = Object.fromEntries((data.clusters || []).map(c => [c.k, c.name]));
+  const clusters = [...(data.clusters || [])].sort((a, b) => b.n - a.n);   // подписи: крупные кластеры — приоритет
+  const val = n => n.v === "drop" ? 0.4 : Math.min(30, 1 + Math.sqrt(n.n) * (n.v === "keep" ? 2 : 1));
+  const rad = n => Math.sqrt(val(n)) * 2;   // force-graph draws radius = sqrt(val) * nodeRelSize
+
+  // Branch layout, computed once and remembered as n.bx/n.by (like the forum map): packed circle per branch, branches on a ring.
+  const count = {}; data.nodes.forEach(n => count[n.b] = (count[n.b] || 0) + 1);
+  const branches = data.topics.map(t => t.short).sort((a, b) => count[b] - count[a]);
+  const area = b => data.nodes.filter(n => n.b === b).reduce((s, n) => s + (rad(n) + 1) ** 2 * 4, 0);
+  const cr = Object.fromEntries(branches.map(b => [b, Math.sqrt(area(b) / Math.PI) * 1.15]));
+  const ringLen = branches.reduce((s, b) => s + 2 * cr[b] + 60, 0), R = ringLen / (2 * Math.PI), centers = {};
+  let acc = 0;
+  for (const b of branches) { const a = (acc + cr[b] + 30) / ringLen * 2 * Math.PI; acc += 2 * cr[b] + 60; centers[b] = [Math.cos(a) * R, Math.sin(a) * R]; }
+  data.nodes.forEach((n, i) => { const a = i * 2.4, r = Math.sqrt(Math.random()) * cr[n.b]; n.x = centers[n.b][0] + Math.cos(a) * r; n.y = centers[n.b][1] + Math.sin(a) * r; });
+  const sim = d3.forceSimulation(data.nodes)
+    .force("x", d3.forceX(n => centers[n.b][0]).strength(0.12)).force("y", d3.forceY(n => centers[n.b][1]).strength(0.12))
+    .force("collide", d3.forceCollide(n => rad(n) + 0.7).iterations(2)).stop();
+  for (let i = 0; i < 260; i++) sim.tick();
+  data.nodes.forEach(n => { n.bx = n.x; n.by = n.y; });
+
+  // Semantic layout, remembered as n.sx/n.sy: pull to ux/uy from layout.py, collide to avoid overlaps (~150 ticks).
+  const sem = data.nodes.filter(n => n.ux != null);
+  if (sem.length) {
+    sem.forEach(n => { n.x = n.ux; n.y = n.uy; });
+    const sim2 = d3.forceSimulation(sem)
+      .force("x", d3.forceX(n => n.ux).strength(0.3)).force("y", d3.forceY(n => n.uy).strength(0.3))
+      .force("collide", d3.forceCollide(n => rad(n) + 0.5)).stop();
+    for (let i = 0; i < 150; i++) sim2.tick();
+    sem.forEach(n => { n.sx = n.x; n.sy = n.y; });
+  }
+  mode = sem.length && (data.clusters || []).length ? "semantic" : "branches";
+
+  const useful = data.nodes.filter(n => n.v !== "drop").length;
+  $("#stats").textContent = `${data.nodes.length} разговоров · ${useful} полезных · ${data.nodes.filter(n => n.sc).length} со схемами`;
+  G = ForceGraph()($("#graph")).graphData({ nodes: data.nodes, links: [] }).backgroundColor("#0b0b12")
+    .nodeRelSize(2).nodeVal(val)
+    .nodeColor(n => n.v === "drop" ? CAT.null[1] : (CAT[n.c] || CAT.other)[1])
+    .nodeCanvasObject((n, ctx, scale) => {   // custom painter: search highlight (dim rest, white outline on hits)
+      const hit = hl && hl.has(n.id);
+      ctx.globalAlpha = hl && !hit ? 0.15 : 1;
+      ctx.beginPath(); ctx.arc(n.x, n.y, rad(n), 0, 2 * Math.PI);
+      ctx.fillStyle = n.v === "drop" ? CAT.null[1] : (CAT[n.c] || CAT.other)[1];
+      ctx.fill();
+      if (hit) { ctx.lineWidth = Math.max(1, 2 / scale); ctx.strokeStyle = "#fff"; ctx.stroke(); }
+      ctx.globalAlpha = 1;
+    })
+    .nodeVisibility(visible).cooldownTicks(0).enableNodeDrag(false).autoPauseRedraw(false)
+    .onNodeClick(n => openConv(n.id))
+    .onNodeHover(n => { const t = $("#tip"); if (!n) { t.style.display = "none"; return; } t.style.display = "block";
+      t.innerHTML = `<b>${esc(title[n.b])}</b> · ${n.t.slice(0, 10)} · ${n.n} сообщ.${n.sc ? " · схема" : ""}${n.k != null && clName[n.k] ? ` · <span style="color:#ffb4d0">${esc(clName[n.k])}</span>` : ""}<br>${esc(n.s)}`; })
+    .onRenderFramePost((ctx, scale) => {
+      ctx.textAlign = "center";
+      if (mode === "semantic" && clusters.length) {   // cluster name labels: greedy, no overlaps
+        const fs = 13 / scale, padX = 7 / scale, padY = 5 / scale, lineH = fs + 2 * padY;   // ~13px on screen at any zoom
+        ctx.font = `700 ${fs}px system-ui`; ctx.textBaseline = "middle";
+        const placed = [];   // rects of already drawn labels [x0, y0, x1, y1]
+        const intersects = (x0, y0, x1, y1) => placed.some(p => x0 < p[2] && p[0] < x1 && y0 < p[3] && p[1] < y1);
+        for (const c of clusters) {   // sorted by n desc: big clusters claim their spot first
+          const w = ctx.measureText(c.name).width, x0 = c.x - w / 2 - padX, x1 = c.x + w / 2 + padX;
+          let y = null;
+          for (const dy of [0, lineH, -lineH]) {   // as-is → сдвиг на строку вниз → на строку вверх (2 попытки)
+            if (!intersects(x0, c.y + dy - lineH / 2, x1, c.y + dy + lineH / 2)) { y = c.y + dy; break; }
+          }
+          if (y == null) continue;   // места нет → не рисуем; при зуме места больше — подпись появится (расчёт каждый кадр)
+          placed.push([x0, y - lineH / 2, x1, y + lineH / 2]);
+          ctx.fillStyle = "rgba(11,11,18,0.55)";
+          ctx.fillRect(x0, y - lineH / 2, x1 - x0, lineH);
+          ctx.fillStyle = "#fff";
+          ctx.fillText(c.name, c.x, y);
+        }
+      } else {   // branch labels
+        ctx.font = `600 ${Math.max(12, 13 / scale)}px system-ui`; ctx.textBaseline = "alphabetic";
+        for (const b of branches) { ctx.fillStyle = "#e5397b"; ctx.fillText(title[b].toUpperCase(), centers[b][0], centers[b][1] - cr[b] - 14); }
+      }
+    });
+  applyMode();
+  document.addEventListener("mousemove", e => { const t = $("#tip"); t.style.left = e.clientX + 14 + "px"; t.style.top = e.clientY + 14 + "px"; });
+  setTimeout(() => G.zoomToFit(600, 90, visible), 300);   // room for labels
+  legend(); timeline();
+  const hp = new URLSearchParams(location.hash.slice(1));   // #conv=nft-c0083-01&q=…&focus=…&mode=…&anon=1&events&experts
+  if (hp.get("conv")) {
+    if (hp.get("mode")) { convMode = hp.get("mode"); localStorage.setItem("mxw_convMode", convMode); }
+    if (hp.get("anon")) setAnon(hp.get("anon") === "1");
+    openConv(hp.get("conv"), hp.get("focus"), hp.get("q"));
+  } else if (hp.get("events") !== null) {   // #events — доска активностей (для deep-link/скриншотов)
+    $("#bEvents").click();
+  } else if (hp.get("experts") !== null) {   // #experts — «кто в чём» (deep-link/скриншоты); &tab=people, &person=…
+    expertsPanel(hp.get("tab")).then(() => { if (hp.get("person")) openExpertCard(hp.get("person")); });
+  } else if (hp.get("chat") !== null) {   // #chat — чат с базой; #chat&q=… сразу отправляет вопрос
+    chatPanel();
+    if (hp.get("q")) sendChat(hp.get("q"));
+  } else if (hp.get("trends") !== null) {   // #trends — «темы во времени» (deep-link/скриншоты); &by=category, &per=m3|m1
+    if (hp.get("by") === "category" || hp.get("by") === "cluster") trendsBy = hp.get("by");
+    if (["all", "m3", "m1"].includes(hp.get("per"))) trendsPer = hp.get("per");
+    openTrends();
+  }
+})();
+</script>
+</body>
+</html>

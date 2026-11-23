@@ -1,0 +1,17 @@
+---
+ветка: "Софты"
+разговор: c0051
+дата: 2026-11-02
+категория: nft
+оценка: keep
+теги: ["stratar", "robinhood", "capsolver"]
+---
+# Софты · c0051 · 2026-11-02 08:56
+
+**Выжимка:** Stratar: форма, 600 supply на Robinhood, фриминт; нужен CapSolver, около 1.20$ за 1К кошельков. ApeNFTs_RH: разработчик переиспользует коллекции по 20 раз, ожиданий нет.
+
+## Сообщения
+
+**#60371 2026-11-02 08:56 hh: X проекта / Форма Stratar /  / 600 сап рх, фришка /  / CAPSOLVER необходим, расход 1,20$ за 1к кошей, поэтому нфа диор и тд ⟪files: [архив stratar-bot-hh-public.zip, 35 файлов] stratar-bot-hh-public/ stratar-bot-hh-public/.gitattributes stratar-bot-hh-public/.github/ stratar-bot-hh-public/.github/workflows/ stratar-bot-hh-public/.github/workflows/ci.yml stratar-bot-hh-public/.gitignore stratar-bot-hh-public/AGENTS.md stratar-bot-hh-public/README.md stratar-bot-hh-public/START.bat stratar-bot-hh-public/config.py stratar-bot-hh-public/docs/ stratar-bot-hh-public/docs/references/ stratar-bot-hh-public/docs/references/site-api.md stratar-bot-hh-public/examples/ stratar-bot-hh-public/examples/proxy.txt.example stratar-bot-hh-public/examples/slots.csv.example stratar-bot-hh-public/examples/wallets.txt.example stratar-bot-hh-public/lab-project.json stratar-bot-hh-public/main.py stratar-bot-hh-public/requirements.txt stratar-bot-hh-public/stratar/ stratar-bot-hh-public/stratar/__init__.py stratar-bot-hh-public/stratar/adapter.py stratar-bot-hh-public/stratar/archive_style_fields.py stratar-bot-hh-public/stratar/capsolver.py stratar-bot-hh-public/stratar/core.py stratar-bot-hh-public/stratar/credentials.py stratar-bot-hh-public/stratar/error_policy.py stratar-bot-hh-public/stratar/run_lock.py stratar-bot-hh-public/tests/ stratar-bot-hh-public/tests/test_audit.py stratar-bot-hh-public/tests/test_client.py stratar-bot-hh-public/tests/test_solver.py stratar-bot-hh-public/tools/ stratar-bot-hh-public/tools/audit.py⟫**
+
+**#60372 2026-11-02 08:58 hh: https://x.com/ApeNFTs_RH / https://apeonrh.xyz/FCFS /  /  / надежд нет, разраб уебок который ресайклит коллекции по 20 раз, закинул на всякий ⟪files: [архив apeonrh-bot-hh-public.zip, 35 файлов] apeonrh-bot-hh-public/ apeonrh-bot-hh-public/.gitattributes apeonrh-bot-hh-public/.github/ apeonrh-bot-hh-public/.github/workflows/ apeonrh-bot-hh-public/.github/workflows/ci.yml apeonrh-bot-hh-public/.gitignore apeonrh-bot-hh-public/AGENTS.md apeonrh-bot-hh-public/README.md apeonrh-bot-hh-public/START.bat apeonrh-bot-hh-public/apeonrh/ apeonrh-bot-hh-public/apeonrh/__init__.py apeonrh-bot-hh-public/apeonrh/adapter.py apeonrh-bot-hh-public/apeonrh/archive_style_fields.py apeonrh-bot-hh-public/apeonrh/core.py apeonrh-bot-hh-public/apeonrh/error_policy.py apeonrh-bot-hh-public/apeonrh/model.py apeonrh-bot-hh-public/apeonrh/run_lock.py apeonrh-bot-hh-public/apeonrh/vault.py apeonrh-bot-hh-public/config.py apeonrh-bot-hh-public/docs/ apeonrh-bot-hh-public/docs/references/ apeonrh-bot-hh-public/docs/references/site-api.md apeonrh-bot-hh-public/examples/ apeonrh-bot-hh-public/examples/proxy.txt.example apeonrh-bot-hh-public/examples/slots.csv.example apeonrh-bot-hh-public/examples/wallets.txt.example apeonrh-bot-hh-public/lab-project.json apeonrh-bot-hh-public/main.py apeonrh-bot-hh-public/requirements.txt apeonrh-bot-hh-public/tests/ apeonrh-bot-hh-public/tests/test_additional.py apeonrh-bot-hh-public/tests/test_audit.py apeonrh-bot-hh-public/tests/test_client.py apeonrh-bot-hh-public/tools/ apeonrh-bot-hh-public/tools/audit.py⟫**

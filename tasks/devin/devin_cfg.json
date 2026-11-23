@@ -1,0 +1,12 @@
+{
+  "permissions": {"deny": [
+  "Read(.llm_env)", "Read(**/.llm_env)", "Read(.openrouter_key)", "Read(**/.openrouter_key)",
+  "Read(**/credentials*)", "Read(dist/**)", "Read(models/**)", "Read(backup/**)",
+  "Edit(.llm_env)", "Edit(**/.llm_env)", "Edit(data/**)", "Edit(vault/**)", "Edit(dist/**)", "Edit(backup/**)", "Edit(models/**)"
+]},
+  "version": 1,
+  "shell": {
+    "setup_complete": true
+  },
+  "theme_mode": "dark"
+}

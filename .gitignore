@@ -1,0 +1,23 @@
+# секреты — никогда в репозиторий
+.llm_env
+.openrouter_key
+*.key
+.env*
+credentials*
+
+# приватные исходные данные, бэкапы, бинарники, сборки
+data/
+backup/
+models/
+dist/
+__pycache__/
+*.pyc
+*.tmp
+*.log.bak
+
+# логи агентов и раннеры с адресами провайдеров — не нужны в репозитории
+tasks/*.log
+tasks/*.err
+tasks/run_design_queue.sh
+tasks/run_ui_queue4.sh
+tasks/devin/review/

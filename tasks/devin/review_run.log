@@ -1,0 +1,47 @@
+00:41:32 start 01_backend_security (claude-opus-5-5-high) attempt 1
+00:41:39 start 02_frontend_xss (gpt-6-2-astra-high) attempt 1
+00:41:48 start 03_frontend_logic (claude-opus-5-5-high) attempt 1
+00:41:59 start 04_backend_logic (gpt-6-2-sol-high) attempt 1
+00:42:27 start 05_pipeline (gemini-4-carbon-high) attempt 1
+00:43:06 start 06_vault_factcheck (gpt-6-2-astra-medium) attempt 1
+00:43:34 start 07_archive (claude-opus-5-5-high) attempt 1
+00:44:17 start 08_privacy (grok-4-7-high) attempt 1
+00:44:43 start 09_ux_design (gemini-4-carbon-high) attempt 1
+00:45:22 start 10_architecture (kimi-k3-1-pro-high) attempt 1
+00:47:42 03_frontend_logic rc=1, retry
+00:47:43 01_backend_security rc=1, retry
+00:47:55 02_frontend_xss rc=1, retry
+00:48:05 04_backend_logic rc=1, retry
+00:48:10 start 03_frontend_logic (claude-opus-5-5-high) attempt 2
+00:48:16 start 01_backend_security (claude-opus-5-5-high) attempt 2
+00:48:23 start 02_frontend_xss (gpt-6-2-astra-high) attempt 2
+00:48:34 start 04_backend_logic (gpt-6-2-sol-high) attempt 2
+00:49:13 05_pipeline rc=1, retry
+00:49:41 06_vault_factcheck rc=1, retry
+00:49:41 start 05_pipeline (gemini-4-carbon-high) attempt 2
+00:50:01 07_archive rc=1, retry
+00:50:03 start 06_vault_factcheck (gpt-6-2-astra-medium) attempt 2
+00:50:26 start 07_archive (claude-opus-5-5-high) attempt 2
+00:50:48 09_ux_design rc=1, retry
+00:50:51 08_privacy rc=1, retry
+00:50:59 10_architecture rc=1, retry
+00:51:13 start 09_ux_design (gemini-4-carbon-high) attempt 2
+00:51:16 start 08_privacy (grok-4-7-high) attempt 2
+00:51:22 start 10_architecture (kimi-k3-1-pro-high) attempt 2
+00:51:33 done 06_vault_factcheck rc=0 size=831
+00:51:52 done 04_backend_logic rc=0 size=814
+00:52:07 done 02_frontend_xss rc=0 size=732
+00:57:14 03_frontend_logic rc=1, retry
+00:57:23 01_backend_security rc=1, retry
+00:57:36 done 03_frontend_logic rc=1 size=0
+00:57:45 done 01_backend_security rc=1 size=0
+01:02:28 07_archive rc=1, retry
+01:02:53 done 07_archive rc=1 size=0
+01:04:00 10_architecture rc=1, retry
+01:04:25 done 10_architecture rc=1 size=0
+01:08:00 09_ux_design rc=1, retry
+01:08:29 done 09_ux_design rc=1 size=0
+01:12:43 05_pipeline rc=1, retry
+01:13:07 done 05_pipeline rc=1 size=0
+01:19:25 done 08_privacy rc=0 size=17212
+ALL_DONE

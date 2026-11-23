@@ -1,0 +1,15 @@
+---
+ветка: "Жизнь, Флуд, Кайф"
+разговор: c0526
+дата: 2026-09-12
+категория: nft
+оценка: partial
+теги: ["nft-trench", "whitelist", "discord"]
+---
+# Жизнь, Флуд, Кайф · c0526 · 2026-09-12 16:05
+
+**Выжимка:** FroZi сделал Discord-бота с алертами по аналогии с Telegram; на скрине список вайтлистов NFT Trench с датами: OG — 12.09 12:00, SubatomDream WL — 12.09 12:00, PUNKTRENCH WL — 15.09 14:00.
+
+## Сообщения
+
+**#47694 2026-09-12 16:05 FroZi: сделал дискорд бота. такого-же как телееграм с алертами ⟪photos: ТИП: скрин чата ТЕКСТ: Вкладки браузера: NFT Trench | Frozi (@fro… | (2930) ✕ | Frozi (@frc… | NFT Trench | OpenSea | Frozi (@fro… | Frozi – Pro… | GPU Mark… | Researcher | My succes… | Исследo…; адресная строка: discord.com/channels/@me/15483234394898554890; верхняя панель: PO6иarya, gglim, Events, аниме, Стрим, AWE, Api, HOT, ProxyWing, Trending, Ethos, deGenAI – AI Art Ge…, Все закладки; заголовок: Личные сообщения / NFT Trencher; левый список: Найдите или начните беседу, Друзья, Запросы общения, Nitro, Магазин, Задания, Личные сообщения, NFT Trencher, pux, Новинки коум порно 2026, Srini, vp sriyans | Gems, zodex, NevaFuckingTrade, …DFAM, …M/, trencho, Srini FROG, BestFord, Saint_paul, Lewton.eth, FRESKO DFAM, JungleSmith MONK, Marina, Emara, Frozi Bots. Сообщение 1: Whitelist: OG – 12.09 12:00 / SubatomDream – WL – 12.09 12:00 / PUNKTRENCH – WL – 15.09 14:00 / NFT Trencher – every morning at 9:00 your time – switches on your profile page / Open the board. Сообщение 2: WHITELIST SCHEDULE · 0x1b…24c0 / 2 mints you're eligible for – times in Europe/Moscow / OpenCats – GTD – 15.09 17:30 / OpenCats – F2TS – 15.09 18:30 / NFT Trencher – every morning at 9:00 your time – switches on your profile page / Open the board. Сообщение 3: ⚠ Alert switches / Direct messages from this bot. Tap a switch to turn that kind on or off; the same switches sit under the Discord tile on your profile page. / 🍒 Mint reminders — off / 📋 New whitelists — off / 🟧 Morning schedule — on / [Mint reminders OFF] [New whitelists OFF] [Morning schedule ON] [Open profile]. Сообщение 4: ⚠ Alert switches / … / 🍒 Mint reminders — on / 📋 New whitelists — on / 🟧 Morning schedule — on / [Mint reminders ON] [New whitelists ON] [Morning schedule ON] [Open profile]. Внизу: NFT Trencher закрепляет сообщение на этом канале. Показать все закрепленные сообщения. 16:53 / Написать @NFT Trencher. Правая панель: Искать «NFT Trencher #1810» / NFT Trencher / NFT Trencher#1810 / 3 общих сервера / Создано 30 янв. 2026 г. / Полный профиль. Системное время: 17:04, 12.09.2026, ENG. СУТЬ: Скриншот личного диалога в Discord с ботом/сервером NFT Trencher, где показаны карточки расписания вейтлистов NFT-минтов (OG, SubatomDream, PUNKTRENCH, OpenCats с датами и временем по Europe/Moscow) и интерактивные переключатели уведомлений (Mint reminders, New whitelists, Morning schedule). Такое могли скинуть в чат, чтобы продемонстрировать работу бота-агрегатора вейтлистов, напомнить участникам о ближайших минтах или показать, как настроить алерты под себя.⟫**

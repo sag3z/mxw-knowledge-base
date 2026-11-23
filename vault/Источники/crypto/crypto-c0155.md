@@ -1,0 +1,29 @@
+---
+ветка: "Крипта, Работа, Проекты"
+разговор: c0155
+дата: 2026-07-28
+категория: ai_dev
+оценка: keep
+теги: ["grok", "ai"]
+---
+# Крипта, Работа, Проекты · c0155 · 2026-07-28 17:08
+
+**Выжимка:** Max делится промптом для Grok: поиск англоязычных статей об AI на X с охватом от 200k за 24 ч (или 50k за 8 ч), по 5 статей от AI-лабораторий и от креаторов, без YouTube-ссылок. Промпт взят из батчерx, подписка Grok не обязательна.
+
+## Сообщения
+
+**#16041 2026-07-28 17:08 Max Wayld 福 (переслано от AI берлога пингвина 28.07.2026 17:06:18): все знают что через грок можна было ресерчить посты, реплаи, аккаунты /  / теперь можно и статьи искать через грок данным промптом: / Find English Articles about AI topics on X that are rapidly gaining impressions over the last 24 hours, exclude not related to AI. Only Articles published on X — no articles from outside X. Make sure to include links and impressions amount. At least 5 articles from AI labs/companies and 5 from X creators. Don't include YouTube links. Minimum 200k imressions over last 24hrs or min 50k impressions over last 8 hrs. /  / Skip: /  / - articles that aren’t related to AI and gained less than 50k impressions/views / - Not written in English. / - posts, QT, comments, threads / по идеи промпт можно переделать под свои задачи либо добавить дополнительные уточнения/убрать лишнее или же добавить больше деталей и правил /  / можете использовать это для понимания того что щас залетает и интересно людям, анализировать тренды, искать идеи под свои баннера и все что вам придет в голову /  / промпт нашел у https://t.me/batcherx ⟪photos: ТИП: другое (текстовая подборка/заметка со ссылками на статьи X, оформленная списком на тёмном фоне) ТЕКСТ: From X creators (independent writers/builders; at least these qualify or closely approach thresholds) These are creator-published X Articles on AI topics with rapidly accumulating views: • Harley Lewis Foote (@harleyfoote_): “A weird Claude 5 signal…” (Anthropic engineers removed >80% of Claude Code’s system prompt for Opus 5 / Fable 5 with no measurable loss on coding evals). Link: https://x.com/i/article/2081769979817467904 ~335k impressions/views. Published ~20 hours earlier. Strong AI (Claude/Anthropic models, prompting, coding evals) focus. @harleyfoote_ • Fireside Alpha (@firesidealpaha): “SLITE’s CEO on the shift from copper to optics inside the AI rack…” (scale-up racks needing ~8,000 lasers, indium phosphide shortages tighter than memory, deployments 2H’27). Link: https://x.com/i/article/2081918289765449728 ~102k impressions/views. Published ~12–13 hours earlier (exceeds 50k-in-8h pace). AI hardware/infrastructure topic. @firesidealpaha • Austen Allred (@Austen): “What changed in the last 24 hours of AI for builders…” (hand-built agent loops dying, Kimi K3 consensus, contaminated agent evals fixed, kill switches for rogue agents). Link: https://x.com/i/article/2081825292067225600 ~13–14k impressions on the main post (lower than threshold but recent ~20h AI-builder/agent topic; related higher-view Austen Article on AI agent workflows from slightly earlier window also appeared in searches). English, pure AI tooling focus. @Austen • Udita Pal (@iUdita): Formula 1 / AI piece (“half of every F1 car is now run by AI… preview of everyone’s job”). Link: https://x.com/i/article/2081656065029214208 ~172k impressions/views. Published ~30h earlier (borderline on strict 24h window but high volume and clearly AI-related). Creator analysis of AI in real-world systems. @iUdita • Additional recent English creator Articles that appeared with solid (though sometimes sub-threshold) traction and clear AI focus include pieces on AI agents/e-commerce (e.g., series starters around agent spend/commerce), AI video workflows + Claude, geospatial/Earth-intelligence AI startups, and builder tooling roundups. Examples from searches: https://x.com/i/article/2081915177755373568 (AI agents in ecommerce), https://x.com/i/article/2081828269608054784 (AI chat vs agents for business), and similar. Volumes were often in the low-to-mid thousands to tens of thousands in the window; the highest-volume ones above best match the “rapidly gaining” + min-impression criteria. СУТЬ: Скрин аналитической подборки англоязычных X-статей об AI (Claude/Anthropic, AI-инфраструктура, агенты, F1+AI) с указанием авторов, ссылок и метрик импрессий/скорости набора просмотров. В крипто-чат такое могли скинуть как сигнал по трендам/инфоповодам вокруг AI-тематики или для отслеживания «быстро набирающих» постов креаторов.⟫**
+
+#16042 2026-07-28 17:08 Max Wayld 福: Прикольная темка
+
+#16064 2026-07-28 17:22 hh: на грок для этого подписка нужна ?
+
+**#16074 2026-07-28 18:02 Max Wayld 福: Просто с твитака там заходишь и всё, нормально и с галочкой работает**
+
+#16075 2026-07-28 18:02 Max Wayld 福: Хотя может даже и без галки работает на небольшое кол-во вопросов
+
+#16076 2026-07-28 18:04 glimjke (переслано от что-то про крипту 28.07.2026 18:00:36): ) ⟪photos: ТИП: скрин твита ТЕКСТ: Base Build ✅🟦 @buildonba… • 10m Introducing Base Verify Onchain. Onchain sybil resistance against industrial airdrop farmers. Make sure your rewards end up with the community they were meant for, not bots. Live on Base Sepolia. Learn more ↓ [встроенный пост] Base Build ✅🟦 @buildonbase • 11m [картинка: три пиксельных замка, на первом плашка] X Article Onchain Sybil Resistance СУТЬ: Официальный анонс от команды Base Build продукта «Base Verify Onchain» — ончейн-механизма защиты от сибил-атак и промышленных аирдроп-фермеров, чтобы реварды уходили реальным участникам, а не ботам; решение уже доступно в тестовой сети Base Sepolia. В чат это могли скинуть для обсуждения нового инструмента верификации, его влияния на будущие аирдропы/распределение наград и того, стоит ли проходить проверку.⟫
+
+#16077 2026-07-28 18:04 glimjke: НУ ВСЕ ПРИЕХАЛИ
+
+#16080 2026-07-28 18:09 Демократий: Наигрались
