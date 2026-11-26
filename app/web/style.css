@@ -1104,3 +1104,4 @@ select.set-in { width: 100%; }
 }
 .mdl-note.mdl-count { padding: 6px 10px 4px; font-size: 11.5px; text-transform: uppercase; letter-spacing: .04em; }
 .mdl-alias { margin-left: 8px; font-size: 11.5px; color: var(--muted); font-weight: 400; }
+.mdl-alias.mdl-real { color: var(--link); }

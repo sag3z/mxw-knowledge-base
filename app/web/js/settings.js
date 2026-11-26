@@ -38,7 +38,15 @@ const ALIASES = {
   "https://api.deepseek.com/v1": { "deepseek-chat": "deepseek-flash", "deepseek-reasoner": "deepseek-flash",
                                    "deepseek-v4-flash": "deepseek-flash", "deepseek-coder": "deepseek-flash" },
 };
-const aliasesNow = () => ALIASES[($("#cfgBase").value || "").trim().replace(/\/+$/, "")] || {};
+/* что на самом деле стоит за общим именем (по документации провайдера, api-docs.deepseek.com, 17.10.2026);
+   поиск в списке ищет и по этим подписям — «4.1» или «1017» находят deepseek-flash */
+const NOTES = {
+  "https://api.deepseek.com/v1": { "deepseek-flash": "DeepSeek-V4.1-Flash-1017 — самая новая",
+                                   "deepseek-v4-pro": "DeepSeek-V4-Pro" },
+};
+const curBase = () => ($("#cfgBase").value || "").trim().replace(/\/+$/, "");
+const aliasesNow = () => ALIASES[curBase()] || {};
+const notesNow = () => NOTES[curBase()] || {};
 const withAliases = ids => {
   if (!ids.length) return ids;
   const extra = Object.keys(aliasesNow()).filter(a => !ids.includes(a));
@@ -322,10 +330,11 @@ function renderPop(showAll = false) {
   const pop = $("#mdlPop");
   const q = popFor.value.trim().toLowerCase();
   const all = withAliases(models);
+  const alias = aliasesNow(), notes = notesNow();
+  const hay = m => (m + " " + (notes[m] || "")).toLowerCase();
   const exact = all.some(m => m.toLowerCase() === q);
-  const list = (showAll || !q || exact) ? all : all.filter(m => m.toLowerCase().includes(q));
+  const list = (showAll || !q || exact) ? all : all.filter(m => hay(m).includes(q));
   popItems = list;                     // все модели, без ограничения (у OpenRouter их 470+)
-  const alias = aliasesNow();
   let html = "";
   if (models.length && !loading)
     html += `<div class="mdl-note mdl-count">${list.length === all.length ? `Все модели провайдера: ${all.length}` : `Найдено ${list.length} из ${all.length}`}</div>`;
@@ -337,7 +346,8 @@ function renderPop(showAll = false) {
   else if (!popItems.length) html += `<div class="mdl-note">Нет моделей с «${esc(q)}»</div>`;
   html += popItems.map((m, i) => {
     const cur = m.toLowerCase() === q;
-    const al = alias[m] ? `<span class="mdl-alias">старое имя, отвечает ${esc(alias[m])}</span>` : "";
+    const al = alias[m] ? `<span class="mdl-alias">старое имя, отвечает ${esc(alias[m])}</span>`
+             : notes[m] ? `<span class="mdl-alias mdl-real">${esc(notes[m])}</span>` : "";
     return `<div class="mdl-opt${cur ? " cur" : ""}${i === popAct ? " act" : ""}" data-i="${i}" role="option" aria-selected="${cur}">${esc(m)}${al}</div>`;
   }).join("");
   pop.innerHTML = html;
