@@ -309,16 +309,33 @@ def chat_json(model, system, user, **kw):
     raise RuntimeError(f"{model}: invalid JSON")
 
 
-def list_models(base, key="", timeout=20):
-    """GET <base>/models у OpenAI-совместимого провайдера → отсортированный список id моделей."""
+def list_models(base, key="", timeout=20, max_pages=30):
+    """GET <base>/models у OpenAI-совместимого провайдера → отсортированный список id ВСЕХ моделей.
+    Листает страницы, если провайдер отдаёт список частями: OpenAI-стиль (has_more + last_id →
+    ?after=), Google-стиль (nextPageToken → ?pageToken=), next_page_token/next."""
+    from urllib.parse import urlencode
     h = {"Accept": "application/json"}
     if key:
         h["Authorization"] = "Bearer " + key
-    req = urllib.request.Request(base.strip().rstrip("/") + "/models", headers=h)
-    with urllib.request.urlopen(req, timeout=timeout) as r:
-        d = json.loads(r.read().decode("utf-8", "replace"))
-    items = d.get("data") if isinstance(d, dict) else d
-    if not isinstance(items, list) and isinstance(d, dict):
-        items = d.get("models") or []
-    ids = {(x.get("id") or x.get("name") or "") if isinstance(x, dict) else str(x) for x in items or []}
-    return sorted(i for i in ids if i)
+    url0 = base.strip().rstrip("/") + "/models"
+    ids, params = set(), {}
+    for _ in range(max_pages):
+        url = url0 + ("?" + urlencode(params) if params else "")
+        with urllib.request.urlopen(urllib.request.Request(url, headers=h), timeout=timeout) as r:
+            d = json.loads(r.read().decode("utf-8", "replace"))
+        items = d.get("data") if isinstance(d, dict) else d
+        if not isinstance(items, list) and isinstance(d, dict):
+            items = d.get("models") or []
+        page = [(x.get("id") or x.get("name") or "") if isinstance(x, dict) else str(x) for x in items or []]
+        before = len(ids)
+        ids.update(i for i in page if i)
+        if not isinstance(d, dict) or len(ids) == before:
+            break
+        tok = d.get("nextPageToken") or d.get("next_page_token")
+        if tok:
+            params = {"pageToken": tok, "page_token": tok}
+        elif d.get("has_more") and (d.get("last_id") or page):
+            params = {"after": d.get("last_id") or page[-1]}
+        else:
+            break
+    return sorted(ids)

@@ -32,6 +32,19 @@ const PROVIDERS = [
 ];
 const byId = id => PROVIDERS.find(p => p.id === id);
 
+/* имена, которые API принимает, но в /models не отдаёт (проверено запросами 26.11.2026):
+   у DeepSeek две модели — deepseek-flash и deepseek-v4-pro, остальное — старые имена */
+const ALIASES = {
+  "https://api.deepseek.com/v1": { "deepseek-chat": "deepseek-flash", "deepseek-reasoner": "deepseek-flash",
+                                   "deepseek-v4-flash": "deepseek-flash", "deepseek-coder": "deepseek-flash" },
+};
+const aliasesNow = () => ALIASES[($("#cfgBase").value || "").trim().replace(/\/+$/, "")] || {};
+const withAliases = ids => {
+  if (!ids.length) return ids;
+  const extra = Object.keys(aliasesNow()).filter(a => !ids.includes(a));
+  return extra.length ? [...ids, ...extra] : ids;
+};
+
 const get = k => { try { return localStorage.getItem(k) || ""; } catch { return ""; } };
 const put = (k, v) => {
   v = (v || "").trim();
@@ -308,10 +321,14 @@ function renderPop(showAll = false) {
   if (!popFor) return;
   const pop = $("#mdlPop");
   const q = popFor.value.trim().toLowerCase();
-  const exact = models.some(m => m.toLowerCase() === q);
-  const list = (showAll || !q || exact) ? models : models.filter(m => m.toLowerCase().includes(q));
-  popItems = list.slice(0, 400);
+  const all = withAliases(models);
+  const exact = all.some(m => m.toLowerCase() === q);
+  const list = (showAll || !q || exact) ? all : all.filter(m => m.toLowerCase().includes(q));
+  popItems = list;                     // все модели, без ограничения (у OpenRouter их 470+)
+  const alias = aliasesNow();
   let html = "";
+  if (models.length && !loading)
+    html += `<div class="mdl-note mdl-count">${list.length === all.length ? `Все модели провайдера: ${all.length}` : `Найдено ${list.length} из ${all.length}`}</div>`;
   if (popFor.id === "cfgFast")
     html += `<div class="mdl-opt mdl-same" data-v="" role="option">та же, что для ответа</div>`;
   if (loading) html += `<div class="mdl-note">Загружаю список моделей…</div>`;
@@ -320,9 +337,9 @@ function renderPop(showAll = false) {
   else if (!popItems.length) html += `<div class="mdl-note">Нет моделей с «${esc(q)}»</div>`;
   html += popItems.map((m, i) => {
     const cur = m.toLowerCase() === q;
-    return `<div class="mdl-opt${cur ? " cur" : ""}${i === popAct ? " act" : ""}" data-i="${i}" role="option" aria-selected="${cur}">${esc(m)}</div>`;
+    const al = alias[m] ? `<span class="mdl-alias">старое имя, отвечает ${esc(alias[m])}</span>` : "";
+    return `<div class="mdl-opt${cur ? " cur" : ""}${i === popAct ? " act" : ""}" data-i="${i}" role="option" aria-selected="${cur}">${esc(m)}${al}</div>`;
   }).join("");
-  if (list.length > popItems.length) html += `<div class="mdl-note">ещё ${list.length - popItems.length} — уточни поиск</div>`;
   pop.innerHTML = html;
   pop.hidden = false;
   placePop();

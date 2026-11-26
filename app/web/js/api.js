@@ -1127,13 +1127,27 @@ export function chatStream(body, h, signal) {
 const postJson = (path, cfg) => jfetch(path, { method: "POST", headers: { "Content-Type": "application/json" },
                                               body: JSON.stringify(cfg) });
 
+/* ВСЕ модели провайдера: листает страницы, если список отдаётся частями (как llm.list_models) */
 export async function llmModels(cfg) {
   if (!LOCAL()) return (await postJson("/api/llm/models", cfg)).models;
-  const r = await fetch(cfg.base.replace(/\/+$/, "") + "/models", { headers: authHeaders(cfg.key) });
-  if (!r.ok) throw new Error(`HTTP ${r.status}: ${(await r.text()).slice(0, 200)}`);
-  const j = await r.json();
-  const items = Array.isArray(j) ? j : (j.data || j.models || []);
-  return [...new Set(items.map(x => (typeof x === "string" ? x : x.id || x.name || "")).filter(Boolean))].sort();
+  const url0 = cfg.base.replace(/\/+$/, "") + "/models";
+  const ids = new Set();
+  let qs = "";
+  for (let page = 0; page < 30; page++) {
+    const r = await fetch(url0 + qs, { headers: authHeaders(cfg.key) });
+    if (!r.ok) throw new Error(`HTTP ${r.status}: ${(await r.text()).slice(0, 200)}`);
+    const j = await r.json();
+    const items = Array.isArray(j) ? j : (j.data || j.models || []);
+    const got = items.map(x => (typeof x === "string" ? x : x.id || x.name || "")).filter(Boolean);
+    const before = ids.size;
+    got.forEach(id => ids.add(id));
+    if (Array.isArray(j) || ids.size === before) break;
+    const tok = j.nextPageToken || j.next_page_token;
+    if (tok) qs = "?pageToken=" + encodeURIComponent(tok) + "&page_token=" + encodeURIComponent(tok);
+    else if (j.has_more && (j.last_id || got.length)) qs = "?after=" + encodeURIComponent(j.last_id || got[got.length - 1]);
+    else break;
+  }
+  return [...ids].sort();
 }
 
 export async function llmTest(cfg) {

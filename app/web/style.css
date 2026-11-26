@@ -1102,3 +1102,5 @@ select.set-in { width: 100%; }
   .ev-filters select { max-width: 150px; }
   .ap-crumbs > span:not(.ap-sep) { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; }
 }
+.mdl-note.mdl-count { padding: 6px 10px 4px; font-size: 11.5px; text-transform: uppercase; letter-spacing: .04em; }
+.mdl-alias { margin-left: 8px; font-size: 11.5px; color: var(--muted); font-weight: 400; }
