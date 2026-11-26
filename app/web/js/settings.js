@@ -7,7 +7,7 @@
    Смысловой поиск по базе работает без ключа — локальная модель прямо в браузере/на сервере. */
 import { icon } from "./icons.js";
 import { isStandalone, llmModels, llmTest } from "./api.js";
-import { $, esc, escAttr } from "./ui.js";
+import { $, esc } from "./ui.js";
 
 const KEYS = { provider: "mxw_provider", key: "mxw_key", base: "mxw_base",
                chat: "mxw_chat_model", fast: "mxw_fast_model" };
@@ -51,7 +51,7 @@ export function settingsInit() {
   /* Esc закрывает только окно настроек (перехват до общих обработчиков ui.js) */
   document.addEventListener("keydown", e => {
     if (e.key !== "Escape" || !wrap || wrap.hidden) return;
-    closeSettings();
+    if (popFor) closePop(); else closeSettings();   // Esc сначала закрывает список моделей
     e.stopPropagation();
   }, true);
 }
@@ -85,15 +85,23 @@ function buildModal() {
             <input type="password" id="cfgKey" class="set-in" placeholder="вставь ключ" autocomplete="off" spellcheck="false">
             <button type="button" id="cfgEye" class="btn icon" title="Показать / скрыть ключ" aria-label="Показать ключ">${icon("eye")}</button>
           </span></label>
-        <label class="set-row"><span>Модель ответа — «мозг» чата</span>
+        <div class="set-row"><span>Модель ответа — «мозг» чата</span>
           <span class="set-pair">
-            <input type="text" id="cfgChat" class="set-in" list="cfgModels" placeholder="начни вводить или загрузи список" spellcheck="false" autocomplete="off">
-            <button type="button" id="cfgLoad" class="btn" title="Загрузить список моделей провайдера">${icon("list", 16)}<span>Модели</span></button>
-          </span></label>
-        <label class="set-row"><span>Модель для поиска <em class="set-hint">быстрая и дешёвая; пусто — та же</em></span>
-          <input type="text" id="cfgFast" class="set-in" list="cfgModels" placeholder="та же, что для ответа" spellcheck="false" autocomplete="off"></label>
-        <datalist id="cfgModels"></datalist>
+            <span class="set-combo">
+              <input type="text" id="cfgChat" class="set-in" placeholder="выбери из списка" spellcheck="false" autocomplete="off"
+                     role="combobox" aria-autocomplete="list" aria-expanded="false" aria-controls="mdlPop">
+              <button type="button" class="combo-btn" data-for="cfgChat" tabindex="-1" aria-label="Открыть список моделей">${icon("chev-down", 16)}</button>
+            </span>
+            <button type="button" id="cfgLoad" class="btn" title="Обновить список моделей провайдера">${icon("retry", 16)}<span>Обновить</span></button>
+          </span></div>
+        <div class="set-row"><span>Модель для поиска <em class="set-hint">быстрая и дешёвая; пусто — та же</em></span>
+          <span class="set-combo">
+            <input type="text" id="cfgFast" class="set-in" placeholder="та же, что для ответа" spellcheck="false" autocomplete="off"
+                   role="combobox" aria-autocomplete="list" aria-expanded="false" aria-controls="mdlPop">
+            <button type="button" class="combo-btn" data-for="cfgFast" tabindex="-1" aria-label="Открыть список моделей">${icon("chev-down", 16)}</button>
+          </span></div>
       </div>
+      <div id="mdlPop" class="mdl-pop" role="listbox" hidden></div>
       <div id="cfgStatus" class="set-status" role="status" aria-live="polite"></div>
       <div class="set-btns">
         <button id="cfgSave" class="btn primary">Сохранить</button>
@@ -107,15 +115,16 @@ function buildModal() {
   $("#cfgSave").addEventListener("click", saveSettings);
   $("#cfgClear").addEventListener("click", clearSettings);
   $("#cfgTest").addEventListener("click", testSettings);
-  $("#cfgLoad").addEventListener("click", loadModels);
-  $("#cfgProv").addEventListener("change", () => applyPreset(true));
+  $("#cfgLoad").addEventListener("click", () => { loadModels(true); const i = $("#cfgChat"); i.focus(); openPop(i); });
+  $("#cfgProv").addEventListener("change", () => { applyPreset(true); modelsMaybeStale(); });
+  wireCombo();
   $("#cfgEye").addEventListener("click", () => {
     const k = $("#cfgKey"), show = k.type === "password";
     k.type = show ? "text" : "password";
     $("#cfgEye").innerHTML = icon(show ? "eye-off" : "eye");
   });
   wrap.addEventListener("keydown", e => {   // Enter в любом поле — сохранить
-    if (e.key === "Enter" && e.target.tagName === "INPUT") saveSettings();
+    if (e.key === "Enter" && e.target.tagName === "INPUT") { closePop(); saveSettings(); }
   });
 }
 
@@ -128,7 +137,6 @@ function applyPreset(reset) {
     $("#cfgBase").value = p.base || "";
     $("#cfgChat").value = p.model || "";
     $("#cfgFast").value = "";
-    $("#cfgModels").innerHTML = "";
     status("");
   }
   $("#cfgBase").readOnly = !!p.base && p.id !== "custom" && !p.local;
@@ -171,14 +179,15 @@ function openSettings() {
   status(prov === "server" ? "Чат отвечает через провайдеров, настроенных на сервере." : "");
   wrap.hidden = false;
   $("#cfgProv").focus();
+  modelsMaybeStale();                  // есть ключ — список моделей грузится сразу, в фоне
 }
 
-function closeSettings() { if (wrap) wrap.hidden = true; }
+function closeSettings() { closePop(); if (wrap) wrap.hidden = true; }
 
 function validate(f, needModel = true) {
   if (f.provider === "server") return "";
   if (!/^https?:\/\/\S+/.test(f.base)) return "Адрес API должен начинаться с http:// или https://";
-  if (needModel && !f.model) return "Укажи модель ответа (кнопка «Модели» загрузит список)";
+  if (needModel && !f.model) return "Выбери модель ответа в списке";
   if (!f.key && !(byId(f.provider) || {}).local && !/localhost|127\.0\.0\.1/.test(f.base))
     return "Нужен API-ключ";
   return "";
@@ -213,24 +222,166 @@ const errText = e => {
   return m.slice(0, 260);
 };
 
-async function loadModels() {
+/* ---- список моделей: грузится сам (есть адрес и ключ), кэш по адресу+ключу ---- */
+const modelCache = new Map();          // base\nkey → [id]
+let models = [];                       // список для текущих адреса и ключа
+let loading = null;                    // Promise загрузки в полёте
+let loadErr = "";
+
+const cacheKey = f => f.base + "\n" + f.key;
+const canLoad = f => f.provider !== "server" && !validate(f, false);
+
+/* force — кнопка «Обновить»: мимо кэша и с сообщением в статусе */
+async function loadModels(force = false) {
   const f = form();
+  if (f.provider === "server") return [];
   const err = validate(f, false);
-  if (err) { status(err, "bad"); return; }
-  if (f.provider === "server") return;
-  status("Загружаю список моделей…");
+  if (err) { models = []; loadErr = err; if (force) status(err, "bad"); renderPop(); return []; }
+  const ck = cacheKey(f);
+  if (!force && modelCache.has(ck)) { models = modelCache.get(ck); loadErr = ""; renderPop(); return models; }
+  if (loading) return loading;
+  loadErr = "";
   $("#cfgLoad").disabled = true;
-  try {
-    const ids = await llmModels({ base: f.base, key: f.key });
-    $("#cfgModels").innerHTML = ids.slice(0, 3000).map(id => `<option value="${escAttr(id)}"></option>`).join("");
-    status(ids.length ? `Моделей: ${ids.length}. Начни вводить название в поле — появятся подсказки.`
-                      : "Провайдер вернул пустой список — впиши модель вручную", ids.length ? "ok" : "bad");
-    if (ids.length) $("#cfgChat").focus();
-  } catch (e) {
-    status("Список не загрузился: " + errText(e), "bad");
-  } finally {
-    $("#cfgLoad").disabled = false;
+  if (force) status("Загружаю список моделей…");
+  renderPop();
+  loading = (async () => {
+    try {
+      const ids = await llmModels({ base: f.base, key: f.key });
+      modelCache.set(ck, ids);
+      if (cacheKey(form()) === ck) models = ids;
+      if (force || !ids.length)
+        status(ids.length ? `Моделей: ${ids.length} — выбери в списке` : "Провайдер не отдал список моделей — впиши название вручную",
+               ids.length ? "ok" : "bad");
+      return ids;
+    } catch (e) {
+      models = [];
+      loadErr = "Список не загрузился: " + errText(e);
+      status(loadErr, "bad");
+      return [];
+    } finally {
+      loading = null;
+      $("#cfgLoad").disabled = false;
+      renderPop();
+    }
+  })();
+  return loading;
+}
+
+/* адрес или ключ поменялись — подгрузить список заново (тихо) */
+function modelsMaybeStale() {
+  const f = form();
+  models = modelCache.get(cacheKey(f)) || [];
+  if (canLoad(f) && !modelCache.has(cacheKey(f))) loadModels();
+}
+
+/* ---- выпадающий список (один на оба поля, position: fixed — не обрезается окном) ---- */
+let popFor = null;                     // input, к которому открыт список
+let popAct = -1;                       // подсвеченный пункт
+let popItems = [];
+
+function openPop(input) {
+  popFor = input;
+  input.setAttribute("aria-expanded", "true");
+  popAct = -1;
+  renderPop(true);
+  if (!models.length && !loading && canLoad(form())) loadModels();
+}
+
+function closePop() {
+  if (!popFor) return;
+  popFor.setAttribute("aria-expanded", "false");
+  popFor = null;
+  $("#mdlPop").hidden = true;
+}
+
+function placePop() {
+  const pop = $("#mdlPop"), r = popFor.getBoundingClientRect();
+  const below = innerHeight - r.bottom - 12, above = r.top - 12;
+  const up = below < 220 && above > below;
+  const h = Math.min(300, Math.max(120, up ? above : below));
+  Object.assign(pop.style, { left: r.left + "px", width: r.width + "px", maxHeight: h + "px",
+                             top: up ? "" : (r.bottom + 4) + "px", bottom: up ? (innerHeight - r.top + 4) + "px" : "" });
+}
+
+/* showAll — только что открыли: весь список, даже если в поле уже выбранная модель */
+function renderPop(showAll = false) {
+  if (!popFor) return;
+  const pop = $("#mdlPop");
+  const q = popFor.value.trim().toLowerCase();
+  const exact = models.some(m => m.toLowerCase() === q);
+  const list = (showAll || !q || exact) ? models : models.filter(m => m.toLowerCase().includes(q));
+  popItems = list.slice(0, 400);
+  let html = "";
+  if (popFor.id === "cfgFast")
+    html += `<div class="mdl-opt mdl-same" data-v="" role="option">та же, что для ответа</div>`;
+  if (loading) html += `<div class="mdl-note">Загружаю список моделей…</div>`;
+  else if (loadErr) html += `<div class="mdl-note bad">${esc(loadErr)}</div>`;
+  else if (!models.length) html += `<div class="mdl-note">${canLoad(form()) ? "Список пуст — впиши название вручную" : "Укажи ключ — список моделей загрузится сам"}</div>`;
+  else if (!popItems.length) html += `<div class="mdl-note">Нет моделей с «${esc(q)}»</div>`;
+  html += popItems.map((m, i) => {
+    const cur = m.toLowerCase() === q;
+    return `<div class="mdl-opt${cur ? " cur" : ""}${i === popAct ? " act" : ""}" data-i="${i}" role="option" aria-selected="${cur}">${esc(m)}</div>`;
+  }).join("");
+  if (list.length > popItems.length) html += `<div class="mdl-note">ещё ${list.length - popItems.length} — уточни поиск</div>`;
+  pop.innerHTML = html;
+  pop.hidden = false;
+  placePop();
+  if (showAll) {                       // прокрутить к выбранной модели
+    const c = pop.querySelector(".mdl-opt.cur");
+    if (c) c.scrollIntoView({ block: "center" });
   }
+}
+
+function pickPop(v) {
+  if (!popFor) return;
+  popFor.value = v;
+  const inp = popFor;
+  closePop();
+  inp.focus();
+  if (inp.id === "cfgChat") status(v ? `Модель ответа: ${v}. Нажми «Проверить» или «Сохранить».` : "", v ? "ok" : "");
+}
+
+function movePop(d) {
+  if (!popItems.length) return;
+  popAct = (popAct + d + popItems.length) % popItems.length;
+  renderPop();
+  const a = $("#mdlPop").querySelector(".mdl-opt.act");
+  if (a) a.scrollIntoView({ block: "nearest" });
+}
+
+function wireCombo() {
+  for (const id of ["cfgChat", "cfgFast"]) {
+    const inp = $("#" + id);
+    inp.addEventListener("focus", () => openPop(inp));
+    inp.addEventListener("click", () => { if (popFor !== inp) openPop(inp); });
+    inp.addEventListener("input", () => { if (popFor !== inp) openPop(inp); popAct = -1; renderPop(); });
+    inp.addEventListener("keydown", e => {
+      if (e.key === "ArrowDown") { e.preventDefault(); if (popFor !== inp) openPop(inp); else movePop(1); }
+      else if (e.key === "ArrowUp") { e.preventDefault(); movePop(-1); }
+      else if (e.key === "Enter" && popFor === inp && popAct >= 0) { e.preventDefault(); e.stopPropagation(); pickPop(popItems[popAct]); }
+      else if (e.key === "Tab") closePop();
+    });
+  }
+  wrap.querySelectorAll(".combo-btn").forEach(b => b.addEventListener("mousedown", e => {
+    e.preventDefault();                // не уводим фокус из поля
+    const inp = $("#" + b.dataset.for);
+    if (popFor === inp) closePop(); else { inp.focus(); openPop(inp); }
+  }));
+  const pop = $("#mdlPop");
+  pop.addEventListener("mousedown", e => e.preventDefault());   // клик по списку не снимает фокус
+  pop.addEventListener("click", e => {
+    const o = e.target.closest(".mdl-opt");
+    if (!o) return;
+    pickPop(o.dataset.v !== undefined ? o.dataset.v : popItems[+o.dataset.i]);
+  });
+  document.addEventListener("mousedown", e => {
+    if (popFor && !e.target.closest(".set-combo") && !e.target.closest("#mdlPop")) closePop();
+  });
+  $("#setPanel").addEventListener("scroll", () => { if (popFor) placePop(); });
+  addEventListener("resize", () => { if (popFor) placePop(); });
+  $("#cfgKey").addEventListener("change", modelsMaybeStale);
+  $("#cfgKey").addEventListener("paste", () => setTimeout(modelsMaybeStale, 0));
+  $("#cfgBase").addEventListener("change", modelsMaybeStale);
 }
 
 async function testSettings() {
