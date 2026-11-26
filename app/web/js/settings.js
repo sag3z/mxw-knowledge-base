@@ -19,7 +19,7 @@ const PROVIDERS = [
     keys: "https://openrouter.ai/keys", model: "deepseek/deepseek-chat" },
   { id: "openai", name: "OpenAI", base: "https://api.openai.com/v1", keys: "https://platform.openai.com/api-keys" },
   { id: "deepseek", name: "DeepSeek", base: "https://api.deepseek.com/v1", keys: "https://platform.deepseek.com/",
-    model: "deepseek-chat" },
+    model: "deepseek-flash" },
   { id: "gemini", name: "Google Gemini", base: "https://generativelanguage.googleapis.com/v1beta/openai",
     keys: "https://aistudio.google.com/apikey" },
   { id: "groq", name: "Groq", base: "https://api.groq.com/openai/v1", keys: "https://console.groq.com/keys" },
@@ -209,7 +209,7 @@ const errText = e => {
   if (/Failed to fetch|NetworkError|Load failed/i.test(m))
     return isStandalone()
       ? "Нет связи с API. Возможно, провайдер не пускает запросы прямо из браузера (CORS) — попробуй OpenRouter, а для Ollama запусти её с OLLAMA_ORIGINS=*"
-      : "Нет связи с сервером сайта";
+      : "Сервер сайта не запущен — запусти ярлык «MXW карта» и не закрывай окно «MXW server», потом нажми ещё раз";
   return m.slice(0, 260);
 };
 
